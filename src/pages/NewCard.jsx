@@ -7,6 +7,32 @@ import { doc, getDoc, setDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
 
+const INDIAN_STATES = [
+    'Andhra Pradesh', 'Arunachal Pradesh', 'Assam', 'Bihar', 'Chhattisgarh',
+    'Goa', 'Gujarat', 'Haryana', 'Himachal Pradesh', 'Jharkhand', 'Karnataka',
+    'Kerala', 'Madhya Pradesh', 'Maharashtra', 'Manipur', 'Meghalaya', 'Mizoram',
+    'Nagaland', 'Odisha', 'Punjab', 'Rajasthan', 'Sikkim', 'Tamil Nadu',
+    'Telangana', 'Tripura', 'Uttar Pradesh', 'Uttarakhand', 'West Bengal'
+];
+
+const NPK_LEVELS = {
+    nitrogen: [
+        { label: 'Low (< 280 kg/ha)', value: 'Low', range: [0, 280] },
+        { label: 'Medium (280-560 kg/ha)', value: 'Medium', range: [280, 560] },
+        { label: 'High (> 560 kg/ha)', value: 'High', range: [560, 1000] }
+    ],
+    phosphorus: [
+        { label: 'Low (< 10 kg/ha)', value: 'Low', range: [0, 10] },
+        { label: 'Medium (10-25 kg/ha)', value: 'Medium', range: [10, 25] },
+        { label: 'High (> 25 kg/ha)', value: 'High', range: [25, 100] }
+    ],
+    potassium: [
+        { label: 'Low (< 110 kg/ha)', value: 'Low', range: [0, 110] },
+        { label: 'Medium (110-280 kg/ha)', value: 'Medium', range: [110, 280] },
+        { label: 'High (> 280 kg/ha)', value: 'High', range: [280, 600] }
+    ]
+};
+
 export default function NewCard() {
     const navigate = useNavigate();
     const { currentUser, userProfile } = useAuth();
@@ -19,12 +45,27 @@ export default function NewCard() {
         setStep('generating');
 
         const formData = new FormData(e.target);
+
+        // Convert NPK levels to numeric values (using mid-range)
+        const nLevel = NPK_LEVELS.nitrogen.find(l => l.value === formData.get('nitrogen'));
+        const pLevel = NPK_LEVELS.phosphorus.find(l => l.value === formData.get('phosphorus'));
+        const kLevel = NPK_LEVELS.potassium.find(l => l.value === formData.get('potassium'));
+
+        const nValue = Math.round((nLevel.range[0] + nLevel.range[1]) / 2);
+        const pValue = Math.round((pLevel.range[0] + pLevel.range[1]) / 2);
+        const kValue = Math.round((kLevel.range[0] + kLevel.range[1]) / 2);
+
         const soilData = {
             farmerName: formData.get('farmerName'),
             village: formData.get('village'),
+            state: formData.get('state'),
+            farmSize: parseFloat(formData.get('farmSize')),
             ph: parseFloat(formData.get('ph')),
-            organicCarbon: parseFloat(formData.get('organicCarbon')),
-            npk: formData.get('npk'),
+            organicCarbon: parseFloat(formData.get('organicCarbon') || 1.0),
+            npk: `${nValue}:${pValue}:${kValue}`,
+            nitrogenLevel: formData.get('nitrogen'),
+            phosphorusLevel: formData.get('phosphorus'),
+            potassiumLevel: formData.get('potassium'),
         };
 
         try {
@@ -110,73 +151,140 @@ export default function NewCard() {
     }
 
     return (
-        <div className="max-w-2xl mx-auto">
+        <div className="max-w-4xl mx-auto">
             <div className="bg-white rounded-xl shadow-lg border border-gray-100 p-8">
                 <h2 className="text-2xl font-bold text-gray-800 mb-2 flex items-center">
                     <Sprout className="w-6 h-6 text-green-600 mr-2" />
-                    Generate New Soil Card
+                    Register New Farmer
                 </h2>
-                <p className="text-sm text-gray-500 mb-6 flex items-center">
-                    <Sparkles className="w-4 h-4 mr-1 text-purple-500" />
-                    Powered by Gemini AI for intelligent recommendations
+                <p className="text-sm text-gray-500 mb-6">
+                    Enter farmer details and soil conditions to generate visual smart card
                 </p>
 
                 <form onSubmit={handleSubmit} className="space-y-6">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Farmer's Name</label>
-                            <input
-                                type="text"
-                                name="farmerName"
-                                required
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                                placeholder="Ram Lal"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Village</label>
-                            <input
-                                type="text"
-                                name="village"
-                                required
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                                placeholder="Rampur"
-                            />
+                    {/* Personal Information */}
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Personal Information</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-green-700 mb-1">
+                                    Farmer Name <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    name="farmerName"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                                    placeholder="Test Farmer"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-green-700 mb-1">
+                                    Village <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="text"
+                                    name="village"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                                    placeholder="Test Village"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-green-700 mb-1">
+                                    State <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    name="state"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                                >
+                                    <option value="">Select State</option>
+                                    {INDIAN_STATES.map(state => (
+                                        <option key={state} value={state}>{state}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-green-700 mb-1">
+                                    Farm Size (acres) <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    name="farmSize"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                                    placeholder="2.5"
+                                />
+                            </div>
                         </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">pH Level</label>
-                            <input
-                                type="number"
-                                step="0.1"
-                                name="ph"
-                                required
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                                placeholder="6.5"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">Organic Carbon (%)</label>
-                            <input
-                                type="number"
-                                step="0.1"
-                                name="organicCarbon"
-                                required
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                                placeholder="0.5"
-                            />
-                        </div>
-                        <div>
-                            <label className="block text-sm font-medium text-gray-700 mb-1">NPK (mg/kg)</label>
-                            <input
-                                type="text"
-                                name="npk"
-                                required
-                                className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                                placeholder="100:50:50"
-                            />
+                    {/* Soil Health Parameters */}
+                    <div>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Soil Health Parameters</h3>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                            <div>
+                                <label className="block text-sm font-medium text-green-700 mb-1">
+                                    pH Level <span className="text-red-500">*</span>
+                                </label>
+                                <input
+                                    type="number"
+                                    step="0.1"
+                                    name="ph"
+                                    required
+                                    min="0"
+                                    max="14"
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                                    placeholder="7.0"
+                                />
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-green-700 mb-1">
+                                    Nitrogen Level <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    name="nitrogen"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                                >
+                                    <option value="">Select Level</option>
+                                    {NPK_LEVELS.nitrogen.map(level => (
+                                        <option key={level.value} value={level.value}>{level.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-green-700 mb-1">
+                                    Phosphorus Level <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    name="phosphorus"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                                >
+                                    <option value="">Select Level</option>
+                                    {NPK_LEVELS.phosphorus.map(level => (
+                                        <option key={level.value} value={level.value}>{level.label}</option>
+                                    ))}
+                                </select>
+                            </div>
+                            <div>
+                                <label className="block text-sm font-medium text-green-700 mb-1">
+                                    Potassium Level <span className="text-red-500">*</span>
+                                </label>
+                                <select
+                                    name="potassium"
+                                    required
+                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
+                                >
+                                    <option value="">Select Level</option>
+                                    {NPK_LEVELS.potassium.map(level => (
+                                        <option key={level.value} value={level.value}>{level.label}</option>
+                                    ))}
+                                </select>
+                            </div>
                         </div>
                     </div>
 

@@ -78,7 +78,7 @@ export default function FarmerDashboard() {
             }
 
             const market = await getMarketPrices();
-            setMarketData(market.slice(0, 3));
+            setMarketData(market.slice(0, 4));
 
             setLoading(false);
         } catch (error) {
@@ -510,75 +510,125 @@ export default function FarmerDashboard() {
                 </div>
             )}
 
-            {/* My Card Section with QR Code */}
+            {/* My Card Section - Smart Card Design */}
             <div>
-                <h2 className="text-xl font-bold text-gray-800 mb-4">My Soil Health Card</h2>
+                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
+                    <Sprout className="w-6 h-6 text-green-600 mr-2" />
+                    Visual Farmer Analysis
+                </h2>
                 {card ? (
                     <>
-                        <div ref={cardRef} className="bg-gradient-to-br from-white to-green-50 p-8 rounded-xl shadow-sm border-2 border-green-200">
-                            <div className="flex justify-between items-start mb-6 pb-4 border-b-2 border-green-100">
-                                <div>
-                                    <h3 className="text-2xl font-bold text-green-800">E-Soil Health Card</h3>
-                                    <p className="text-sm text-green-600">The GreenCoders Initiative</p>
-                                    <p className="text-xs text-gray-500 mt-1">Farmer ID: {userProfile.farmerId}</p>
+                        <div ref={cardRef} className="bg-white rounded-2xl shadow-lg border-4 border-green-500 p-8 max-w-md mx-auto">
+                            {/* Farmer Name Header */}
+                            <div className="text-center mb-6">
+                                <div className="flex items-center justify-center mb-2">
+                                    <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
+                                        👨‍🌾
+                                    </div>
                                 </div>
-                                <div className="text-center bg-white p-3 rounded-lg border-2 border-green-500">
+                                <h3 className="text-2xl font-bold text-green-700">{card.farmerName}</h3>
+                            </div>
+
+                            {/* Farmer Details Box */}
+                            <div className="bg-gray-100 rounded-xl p-4 mb-6 space-y-2">
+                                <div className="flex justify-between items-center">
+                                    <span className="font-semibold text-gray-700">Village:</span>
+                                    <span className="text-gray-900">{card.village}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="font-semibold text-gray-700">State:</span>
+                                    <span className="text-gray-900">{card.state || 'N/A'}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="font-semibold text-gray-700">Farmer ID:</span>
+                                    <span className="text-gray-900 font-mono text-sm">{userProfile.farmerId}</span>
+                                </div>
+                                <div className="flex justify-between items-center">
+                                    <span className="font-semibold text-gray-700">Farm Size:</span>
+                                    <span className="text-gray-900">{card.farmSize || '2.5'} acres</span>
+                                </div>
+                            </div>
+
+                            {/* Health Gauge */}
+                            <div className="text-center mb-6">
+                                <div className="relative w-48 h-48 mx-auto">
+                                    {/* Colored ring segments */}
+                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
+                                        {/* Background circle */}
+                                        <circle
+                                            cx="50"
+                                            cy="50"
+                                            r="40"
+                                            fill="none"
+                                            stroke="#e5e7eb"
+                                            strokeWidth="8"
+                                        />
+                                        {/* Progress circle */}
+                                        <circle
+                                            cx="50"
+                                            cy="50"
+                                            r="40"
+                                            fill="none"
+                                            stroke={getSoilHealthColor(soilScore)}
+                                            strokeWidth="8"
+                                            strokeDasharray={`${(soilScore / 100) * 251.2} 251.2`}
+                                            strokeLinecap="round"
+                                        />
+                                    </svg>
+                                    {/* Center text */}
+                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
+                                        <div className="text-5xl font-bold" style={{ color: getSoilHealthColor(soilScore) }}>
+                                            {soilScore}%
+                                        </div>
+                                        <div className="text-sm text-gray-600 mt-1">Health</div>
+                                    </div>
+                                </div>
+                            </div>
+
+                            {/* Voice Advisory Button */}
+                            <button
+                                onClick={toggleSpeech}
+                                className="w-full bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition-colors shadow-lg flex items-center justify-center text-lg"
+                            >
+                                {isSpeaking ? (
+                                    <>
+                                        <VolumeX className="w-6 h-6 mr-2" />
+                                        Stop Voice Advisory
+                                    </>
+                                ) : (
+                                    <>
+                                        <Volume2 className="w-6 h-6 mr-2" />
+                                        Voice Advisory
+                                    </>
+                                )}
+                            </button>
+
+                            {/* QR Code (smaller, at bottom) */}
+                            <div className="mt-6 text-center">
+                                <div className="inline-block bg-white p-2 rounded-lg border border-gray-300">
                                     <QRCodeSVG
                                         value={JSON.stringify({
                                             farmerId: userProfile.farmerId,
                                             farmerName: card.farmerName,
                                             village: card.village,
+                                            state: card.state,
                                             ph: card.ph,
                                             npk: card.npk,
-                                            organicCarbon: card.organicCarbon
+                                            organicCarbon: card.organicCarbon,
+                                            healthScore: soilScore
                                         })}
-                                        size={100}
+                                        size={80}
                                         level="H"
                                         fgColor="#166534"
-                                        includeMargin={true}
+                                        includeMargin={false}
                                     />
-                                    <p className="text-xs text-gray-600 mt-2">Scan QR Code</p>
                                 </div>
-                            </div>
-
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                                <div>
-                                    <label className="text-xs text-gray-500 uppercase font-bold">Farmer Name</label>
-                                    <p className="text-lg font-semibold text-gray-800">{card.farmerName}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs text-gray-500 uppercase font-bold flex items-center">
-                                        <MapPin className="w-3 h-3 mr-1" /> Village
-                                    </label>
-                                    <p className="text-lg font-semibold text-gray-800">{card.village}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs text-gray-500 uppercase font-bold">pH Level</label>
-                                    <p className="text-lg font-semibold text-gray-800">{card.ph}</p>
-                                </div>
-                                <div>
-                                    <label className="text-xs text-gray-500 uppercase font-bold">Organic Carbon</label>
-                                    <p className="text-lg font-semibold text-gray-800">{card.organicCarbon}%</p>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="text-xs text-gray-500 uppercase font-bold">NPK Values (N:P:K)</label>
-                                    <p className="text-lg font-semibold text-gray-800">{card.npk} mg/kg</p>
-                                </div>
-                                <div className="md:col-span-2">
-                                    <label className="text-xs text-gray-500 uppercase font-bold">Recommendations</label>
-                                    <p className="text-sm text-gray-700 bg-yellow-50 p-3 rounded-lg border border-yellow-100 mt-1">
-                                        {card.recommendations}
-                                    </p>
-                                </div>
-                            </div>
-
-                            <div className="mt-6 text-center text-xs text-gray-400 border-t border-green-100 pt-4">
-                                Generated on {new Date(card.createdAt).toLocaleDateString('en-IN')} | Powered by GreenCoders AI
+                                <p className="text-xs text-gray-500 mt-2">Scan for details</p>
                             </div>
                         </div>
 
                         {/* Download Button */}
-                        <div className="mt-4 flex justify-center">
+                        <div className="mt-6 flex justify-center">
                             <button
                                 onClick={downloadCard}
                                 className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-md"
