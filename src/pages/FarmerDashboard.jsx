@@ -487,40 +487,6 @@ export default function FarmerDashboard() {
                 </div>
             )}
 
-            {/* AI Recommendations Section */}
-            {card && aiRecommendations && (
-                <div className="bg-gradient-to-br from-purple-50 to-white rounded-xl shadow-sm border border-purple-100 p-6">
-                    <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center">
-                            <Sparkles className="w-6 h-6 text-purple-600 mr-2" />
-                            <h3 className="text-lg font-bold text-gray-800">AI Farming Recommendations</h3>
-                        </div>
-                        <button
-                            onClick={toggleSpeech}
-                            className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${isSpeaking
-                                ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                : 'bg-purple-100 text-purple-700 hover:bg-purple-200'
-                                }`}
-                        >
-                            {isSpeaking ? (
-                                <>
-                                    <VolumeX className="w-4 h-4 mr-2" />
-                                    Stop Reading
-                                </>
-                            ) : (
-                                <>
-                                    <Volume2 className="w-4 h-4 mr-2" />
-                                    Read Aloud
-                                </>
-                            )}
-                        </button>
-                    </div>
-                    <div className="bg-white p-4 rounded-lg border border-purple-100 prose prose-sm max-w-none prose-p:text-gray-700 prose-headings:text-gray-800 prose-strong:text-purple-700 prose-li:text-gray-700">
-                        <ReactMarkdown>{aiRecommendations}</ReactMarkdown>
-                    </div>
-                </div>
-            )}
-
             {/* Crop Recommendations from CSV */}
             {card && cropRecommendations.length > 0 && (
                 <div className="bg-gradient-to-br from-green-50 to-white rounded-xl shadow-sm border border-green-100 p-6">
@@ -540,8 +506,8 @@ export default function FarmerDashboard() {
                                 <div className="flex items-center justify-between mb-2">
                                     <h4 className="font-bold text-gray-800 capitalize">{crop.crop}</h4>
                                     <span className={`px-2 py-1 rounded-full text-xs font-bold ${crop.suitability >= 80 ? 'bg-green-100 text-green-700' :
-                                            crop.suitability >= 60 ? 'bg-yellow-100 text-yellow-700' :
-                                                'bg-orange-100 text-orange-700'
+                                        crop.suitability >= 60 ? 'bg-yellow-100 text-yellow-700' :
+                                            'bg-orange-100 text-orange-700'
                                         }`}>
                                         {crop.suitability}% Match
                                     </span>
@@ -645,24 +611,6 @@ export default function FarmerDashboard() {
                                 </div>
                             </div>
 
-                            {/* Voice Advisory Button */}
-                            <button
-                                onClick={toggleSpeech}
-                                className="w-full bg-green-600 text-white font-bold py-4 rounded-xl hover:bg-green-700 transition-colors shadow-lg flex items-center justify-center text-lg"
-                            >
-                                {isSpeaking ? (
-                                    <>
-                                        <VolumeX className="w-6 h-6 mr-2" />
-                                        Stop Voice Advisory
-                                    </>
-                                ) : (
-                                    <>
-                                        <Volume2 className="w-6 h-6 mr-2" />
-                                        Voice Advisory
-                                    </>
-                                )}
-                            </button>
-
                             {/* QR Code (smaller, at bottom) */}
                             <div className="mt-6 text-center">
                                 <div className="inline-block bg-white p-2 rounded-lg border border-gray-300">
@@ -687,7 +635,7 @@ GreenCoders E-Soil Smart Card`}
                             </div>
                         </div>
 
-                        {/* Download Button */}
+                        {/* Download Button - Outside cardRef */}
                         <div className="mt-6 flex justify-center">
                             <button
                                 onClick={downloadCard}
@@ -696,6 +644,45 @@ GreenCoders E-Soil Smart Card`}
                                 <Download className="w-5 h-5 mr-2" />
                                 Download Card as PNG
                             </button>
+                        </div>
+
+                        {/* AI Suggestions Section */}
+                        <div className="mt-6 bg-gradient-to-br from-blue-50 to-white rounded-xl shadow-sm border border-blue-100 p-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <div className="flex items-center">
+                                    <Sparkles className="w-6 h-6 text-blue-600 mr-2" />
+                                    <h3 className="text-lg font-bold text-gray-800">AI Farming Suggestions</h3>
+                                </div>
+                                <button
+                                    onClick={toggleSpeech}
+                                    className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${isSpeaking
+                                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
+                                        : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
+                                        }`}
+                                >
+                                    {isSpeaking ? (
+                                        <>
+                                            <VolumeX className="w-4 h-4 mr-2" />
+                                            Stop Voice Advisory
+                                        </>
+                                    ) : (
+                                        <>
+                                            <Volume2 className="w-4 h-4 mr-2" />
+                                            Voice Advisory
+                                        </>
+                                    )}
+                                </button>
+                            </div>
+                            {aiRecommendations ? (
+                                <div className="bg-white p-4 rounded-lg border border-blue-100 prose prose-sm max-w-none prose-p:text-gray-700 prose-headings:text-gray-800 prose-strong:text-blue-700 prose-li:text-gray-700">
+                                    <ReactMarkdown>{aiRecommendations}</ReactMarkdown>
+                                </div>
+                            ) : (
+                                <div className="bg-white p-4 rounded-lg border border-blue-100 text-center text-gray-500">
+                                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
+                                    <p>Generating AI suggestions...</p>
+                                </div>
+                            )}
                         </div>
                     </>
                 ) : (
