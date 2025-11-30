@@ -2,7 +2,7 @@ import React, { useEffect, useState, useRef } from 'react';
 import { collection, query, orderBy, onSnapshot } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
-import { Loader2, Download, Sprout, MapPin, Droplets, Activity } from 'lucide-react';
+import { Loader2, Download, Sprout, MapPin, Droplets, Activity, CloudRain, Thermometer, Wind } from 'lucide-react';
 import { QRCodeSVG } from 'qrcode.react';
 import { motion, AnimatePresence } from 'framer-motion';
 import html2canvas from 'html2canvas';
@@ -130,7 +130,7 @@ export default function MyCards() {
                             animate={{ opacity: 1, scale: 1 }}
                             exit={{ opacity: 0, scale: 0.9 }}
                             onClick={(e) => e.stopPropagation()}
-                            className="bg-white rounded-2xl shadow-2xl max-w-lg w-full overflow-hidden"
+                            className="bg-white rounded-2xl shadow-2xl max-w-2xl w-full overflow-hidden max-h-[90vh] overflow-y-auto"
                         >
                             <div ref={cardRef} className="p-8 bg-gradient-to-br from-white to-green-50 relative">
                                 <div className="flex justify-between items-center mb-6 border-b border-green-100 pb-4">
@@ -145,7 +145,7 @@ export default function MyCards() {
                                     />
                                 </div>
 
-                                <div className="space-y-4">
+                                <div className="space-y-6">
                                     <div className="grid grid-cols-2 gap-4">
                                         <div>
                                             <label className="text-xs text-gray-500 uppercase font-bold">Farmer Name</label>
@@ -157,23 +157,60 @@ export default function MyCards() {
                                         </div>
                                     </div>
 
-                                    <div className="grid grid-cols-3 gap-4 bg-white p-4 rounded-xl border border-green-100 shadow-sm">
-                                        <div className="text-center">
-                                            <div className="flex justify-center mb-1"><Droplets className="w-5 h-5 text-blue-500" /></div>
-                                            <label className="text-xs text-gray-500 block">pH</label>
-                                            <span className="font-bold text-gray-800">{selectedCard.ph}</span>
-                                        </div>
-                                        <div className="text-center border-l border-gray-100">
-                                            <div className="flex justify-center mb-1"><Sprout className="w-5 h-5 text-green-500" /></div>
-                                            <label className="text-xs text-gray-500 block">Carbon</label>
-                                            <span className="font-bold text-gray-800">{selectedCard.organicCarbon}%</span>
-                                        </div>
-                                        <div className="text-center border-l border-gray-100">
-                                            <div className="flex justify-center mb-1"><Activity className="w-5 h-5 text-purple-500" /></div>
-                                            <label className="text-xs text-gray-500 block">NPK</label>
-                                            <span className="font-bold text-gray-800 text-xs">{selectedCard.npk}</span>
+                                    {/* Soil Parameters Grid */}
+                                    <div>
+                                        <h3 className="text-sm font-bold text-gray-700 mb-2 flex items-center">
+                                            <Activity className="w-4 h-4 mr-1 text-green-600" /> Soil Parameters
+                                        </h3>
+                                        <div className="grid grid-cols-3 sm:grid-cols-5 gap-3 bg-white p-4 rounded-xl border border-green-100 shadow-sm">
+                                            <div className="text-center">
+                                                <label className="text-xs text-gray-500 block">Nitrogen</label>
+                                                <span className="font-bold text-gray-800">{selectedCard.N || selectedCard.npk?.split(':')[0]}</span>
+                                            </div>
+                                            <div className="text-center border-l border-gray-100">
+                                                <label className="text-xs text-gray-500 block">Phosphorus</label>
+                                                <span className="font-bold text-gray-800">{selectedCard.P || selectedCard.npk?.split(':')[1]}</span>
+                                            </div>
+                                            <div className="text-center border-l border-gray-100">
+                                                <label className="text-xs text-gray-500 block">Potassium</label>
+                                                <span className="font-bold text-gray-800">{selectedCard.K || selectedCard.npk?.split(':')[2]}</span>
+                                            </div>
+                                            <div className="text-center border-l border-gray-100">
+                                                <label className="text-xs text-gray-500 block">pH</label>
+                                                <span className="font-bold text-gray-800">{selectedCard.ph}</span>
+                                            </div>
+                                            <div className="text-center border-l border-gray-100">
+                                                <label className="text-xs text-gray-500 block">Carbon</label>
+                                                <span className="font-bold text-gray-800">{selectedCard.organicCarbon}%</span>
+                                            </div>
                                         </div>
                                     </div>
+
+                                    {/* Weather Parameters Grid */}
+                                    {(selectedCard.temperature || selectedCard.humidity || selectedCard.rainfall) && (
+                                        <div>
+                                            <h3 className="text-sm font-bold text-gray-700 mb-2 flex items-center">
+                                                <CloudRain className="w-4 h-4 mr-1 text-blue-600" /> Weather Conditions
+                                            </h3>
+                                            <div className="grid grid-cols-3 gap-3 bg-blue-50 p-4 rounded-xl border border-blue-100 shadow-sm">
+                                                <div className="text-center">
+                                                    <div className="flex justify-center mb-1"><Thermometer className="w-4 h-4 text-red-500" /></div>
+                                                    <label className="text-xs text-gray-500 block">Temp</label>
+                                                    <span className="font-bold text-gray-800">{selectedCard.temperature}°C</span>
+                                                </div>
+                                                <div className="text-center border-l border-blue-200">
+                                                    <div className="flex justify-center mb-1"><Wind className="w-4 h-4 text-blue-500" /></div>
+                                                    <label className="text-xs text-gray-500 block">Humidity</label>
+                                                    <span className="font-bold text-gray-800">{selectedCard.humidity}%</span>
+                                                </div>
+                                                <div className="text-center border-l border-blue-200">
+                                                    <div className="flex justify-center mb-1"><CloudRain className="w-4 h-4 text-blue-700" /></div>
+                                                    <label className="text-xs text-gray-500 block">Rainfall</label>
+                                                    <span className="font-bold text-gray-800">{selectedCard.rainfall}mm</span>
+                                                </div>
+                                            </div>
+                                        </div>
+                                    )}
 
                                     <div>
                                         <label className="text-xs text-gray-500 uppercase font-bold">Recommendations</label>

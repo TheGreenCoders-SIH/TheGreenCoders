@@ -1,8 +1,9 @@
 import React, { useState } from 'react';
 import { motion } from 'framer-motion';
-import { Sprout, Mail, Lock, UserPlus, LogIn } from 'lucide-react';
+import { Sprout, Mail, Lock, UserPlus, LogIn, QrCode } from 'lucide-react';
 import { signInWithEmailAndPassword, createUserWithEmailAndPassword } from 'firebase/auth';
 import { auth } from '../lib/firebase';
+import { useNavigate } from 'react-router-dom';
 
 export default function Login() {
     const [isSignUp, setIsSignUp] = useState(false);
@@ -10,6 +11,7 @@ export default function Login() {
     const [password, setPassword] = useState('');
     const [loading, setLoading] = useState(false);
     const [error, setError] = useState('');
+    const navigate = useNavigate();
 
     const handleSubmit = async (e) => {
         e.preventDefault();
@@ -49,8 +51,8 @@ export default function Login() {
                     <button
                         onClick={() => setIsSignUp(false)}
                         className={`flex-1 py-2 rounded-md font-medium transition-all ${!isSignUp
-                                ? 'bg-white text-green-600 shadow-sm'
-                                : 'text-gray-600 hover:text-gray-800'
+                            ? 'bg-white text-green-600 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-800'
                             }`}
                     >
                         Login
@@ -58,8 +60,8 @@ export default function Login() {
                     <button
                         onClick={() => setIsSignUp(true)}
                         className={`flex-1 py-2 rounded-md font-medium transition-all ${isSignUp
-                                ? 'bg-white text-green-600 shadow-sm'
-                                : 'text-gray-600 hover:text-gray-800'
+                            ? 'bg-white text-green-600 shadow-sm'
+                            : 'text-gray-600 hover:text-gray-800'
                             }`}
                     >
                         Sign Up
@@ -125,6 +127,25 @@ export default function Login() {
                         )}
                     </button>
                 </form>
+
+                {/* Divider */}
+                <div className="relative my-6">
+                    <div className="absolute inset-0 flex items-center">
+                        <div className="w-full border-t border-gray-300"></div>
+                    </div>
+                    <div className="relative flex justify-center text-sm">
+                        <span className="px-2 bg-white text-gray-500">Or</span>
+                    </div>
+                </div>
+
+                {/* QR Login Button */}
+                <button
+                    onClick={() => navigate('/qr-login')}
+                    className="w-full bg-blue-600 text-white font-bold py-3 rounded-lg hover:bg-blue-700 transition-colors shadow-md flex items-center justify-center"
+                >
+                    <QrCode className="w-5 h-5 mr-2" />
+                    Login with QR Code
+                </button>
 
                 <p className="text-center text-sm text-gray-500 mt-6">
                     {isSignUp ? 'Already have an account?' : "Don't have an account?"}{' '}

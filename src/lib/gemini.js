@@ -1,29 +1,21 @@
-import { GoogleGenerativeAI } from "@google/generative-ai";
-
-const API_KEY = 'AIzaSyCUBmeaACBsfB0IEcfZ2ZaFWGZaSy6eA5M';
-const genAI = new GoogleGenerativeAI(API_KEY);
+const API_URL = import.meta.env.VITE_ML_API_URL || 'http://localhost:8000';
 
 export const generateRecommendations = async (soilData) => {
     try {
-        const model = genAI.getGenerativeModel({
-            model: "gemini-pro",
-            generationConfig: {
-                temperature: 0.7,
-                maxOutputTokens: 200,
-            }
+        const response = await fetch(`${API_URL}/recommendations`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ soilData }),
         });
 
-        const prompt = `As an agricultural expert, analyze this soil data and provide brief recommendations for Indian farmers:
+        if (!response.ok) {
+            throw new Error('Failed to fetch recommendations');
+        }
 
-pH: ${soilData.ph}
-Organic Carbon: ${soilData.organicCarbon}%
-NPK: ${soilData.npk}
-Location: ${soilData.village}
-
-Provide 2-3 sentences covering suitable crops, fertilizer needs, and soil improvements.`;
-
-        const result = await model.generateContent(prompt);
-        return result.response.text();
+        const data = await response.json();
+        return data.recommendation;
     } catch (error) {
         console.error("Recommendation error:", error);
         return "Apply balanced NPK fertilizer. Add organic compost to improve soil health. Consider crops suitable for your soil pH level.";
@@ -32,22 +24,20 @@ Provide 2-3 sentences covering suitable crops, fertilizer needs, and soil improv
 
 export const chatWithAssistant = async (userMessage) => {
     try {
-        const model = genAI.getGenerativeModel({
-            model: "gemini-pro",
-            generationConfig: {
-                temperature: 0.9,
-                maxOutputTokens: 150,
-            }
+        const response = await fetch(`${API_URL}/chat`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({ message: userMessage }),
         });
 
-        const prompt = `You are Kisan Sahayak, a helpful farming assistant for Indian farmers. Answer briefly in 2-3 sentences.
+        if (!response.ok) {
+            throw new Error('Failed to fetch chat response');
+        }
 
-Question: ${userMessage}
-
-Answer:`;
-
-        const result = await model.generateContent(prompt);
-        return result.response.text();
+        const data = await response.json();
+        return data.response;
     } catch (error) {
         console.error("Chat error:", error.message);
         return "I'm having trouble right now. Please try asking your question again.";

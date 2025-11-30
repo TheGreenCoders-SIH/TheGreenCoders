@@ -63,7 +63,7 @@ export function getCropRecommendations(soilData, weatherData, topN = 5) {
 
         // Group by crop label and get average similarity
         const cropGroups = {};
-        scoredCrops.forEach(crop => {
+        scoredCrops.filter(c => c.label).forEach(crop => {
             if (!cropGroups[crop.label]) {
                 cropGroups[crop.label] = {
                     label: crop.label,
@@ -167,7 +167,7 @@ export function formatCropRecommendations(recommendations, soilData) {
     recommendations.forEach((rec, index) => {
         const suitabilityEmoji = rec.suitability >= 80 ? '🟢' : rec.suitability >= 60 ? '🟡' : '🟠';
 
-        output += `${index + 1}. ${suitabilityEmoji} **${rec.crop.toUpperCase()}** (${rec.suitability}% suitable)\n`;
+        output += `${index + 1}. ${suitabilityEmoji} **${(rec.crop || 'Unknown Crop').toUpperCase()}** (${rec.suitability}% suitable)\n`;
         output += `   - Optimal N: ${Math.round(rec.requirements.N)} mg/kg\n`;
         output += `   - Optimal P: ${Math.round(rec.requirements.P)} mg/kg\n`;
         output += `   - Optimal K: ${Math.round(rec.requirements.K)} mg/kg\n`;

@@ -6,7 +6,11 @@ import { useAuth } from '../contexts/AuthContext';
 import { getWeatherData, getMarketPrices } from '../lib/api';
 import { generateFarmingSchedule, speakText, stopSpeaking } from '../lib/aiRecommendations';
 import { getCropRecommendations } from '../lib/cropRecommendation';
-import { Sprout, MapPin, CloudSun, TrendingUp, Sparkles, Volume2, VolumeX, Loader2, Plus, Download } from 'lucide-react';
+import advisoryEngine from '../lib/advisoryEngine';
+import { Sprout, MapPin, CloudSun, TrendingUp, Sparkles, Volume2, VolumeX, Loader2, Plus, Download, Activity } from 'lucide-react';
+import IoTDashboard from '../components/IoTDashboard';
+import WeatherForecast from '../components/WeatherForecast';
+import SoilHistoryGraph from '../components/SoilHistoryGraph';
 import { motion } from 'framer-motion';
 import { Radar, Bar } from 'react-chartjs-2';
 import { QRCodeCanvas } from 'qrcode.react';
@@ -50,6 +54,8 @@ export default function FarmerDashboard() {
     const [loading, setLoading] = useState(true);
     const [location, setLocation] = useState('');
     const [cropRecommendations, setCropRecommendations] = useState([]);
+    const [fertilizerAdvisory, setFertilizerAdvisory] = useState(null);
+    const [irrigationSchedule, setIrrigationSchedule] = useState(null);
     const cardRef = useRef(null);
 
     useEffect(() => {
@@ -323,14 +329,60 @@ export default function FarmerDashboard() {
                 </motion.div>
             </div>
 
-            {/* Visual Soil Analysis - Only show if card exists */}
+            {/* Quick Access - Feature Navigation */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
+                <h2 className="text-lg font-bold text-gray-800 mb-4">🚀 Quick Access</h2>
+                <div className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-6 gap-4">
+                    <Link to="/profile" className="flex flex-col items-center p-4 bg-gradient-to-br from-blue-50 to-blue-100 rounded-lg hover:shadow-md transition-all border border-blue-200">
+                        <div className="w-12 h-12 bg-blue-600 rounded-full flex items-center justify-center mb-2">
+                            <MapPin className="w-6 h-6 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-800 text-center">My Profile</span>
+                    </Link>
+
+                    <Link to="/crop-recommendations" className="flex flex-col items-center p-4 bg-gradient-to-br from-green-50 to-green-100 rounded-lg hover:shadow-md transition-all border border-green-200">
+                        <div className="w-12 h-12 bg-green-600 rounded-full flex items-center justify-center mb-2">
+                            <Sprout className="w-6 h-6 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-800 text-center">Crop Advice</span>
+                    </Link>
+
+                    <Link to="/soil-analysis" className="flex flex-col items-center p-4 bg-gradient-to-br from-purple-50 to-purple-100 rounded-lg hover:shadow-md transition-all border border-purple-200">
+                        <div className="w-12 h-12 bg-purple-600 rounded-full flex items-center justify-center mb-2">
+                            <TrendingUp className="w-6 h-6 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-800 text-center">Soil Analysis</span>
+                    </Link>
+
+                    <Link to="/ai-advice" className="flex flex-col items-center p-4 bg-gradient-to-br from-indigo-50 to-indigo-100 rounded-lg hover:shadow-md transition-all border border-indigo-200">
+                        <div className="w-12 h-12 bg-indigo-600 rounded-full flex items-center justify-center mb-2">
+                            <Sparkles className="w-6 h-6 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-800 text-center">AI Advice</span>
+                    </Link>
+
+                    <Link to="/market-trends" className="flex flex-col items-center p-4 bg-gradient-to-br from-orange-50 to-orange-100 rounded-lg hover:shadow-md transition-all border border-orange-200">
+                        <div className="w-12 h-12 bg-orange-600 rounded-full flex items-center justify-center mb-2">
+                            <TrendingUp className="w-6 h-6 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-800 text-center">Market Prices</span>
+                    </Link>
+
+                    <Link to="/voice-advisory" className="flex flex-col items-center p-4 bg-gradient-to-br from-pink-50 to-pink-100 rounded-lg hover:shadow-md transition-all border border-pink-200">
+                        <div className="w-12 h-12 bg-pink-600 rounded-full flex items-center justify-center mb-2">
+                            <Volume2 className="w-6 h-6 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-800 text-center">Voice Guide</span>
+                    </Link>
+                </div>
+            </div>
+
+            {/* Visual Soil Health Analysis - Only show if card exists */}
             {card && (
                 <div className="bg-white rounded-xl shadow-sm border border-gray-100 p-6">
                     <h2 className="text-xl font-bold text-gray-800 mb-6 flex items-center">
-                        <Sprout className="w-6 h-6 text-green-600 mr-2" />
-                        Visual Soil Health Analysis
+                        📊 Visual Soil Health Analysis
                     </h2>
-
                     <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
                         {/* Left Column - Gauges and Meters */}
                         <div className="space-y-6">
@@ -502,217 +554,194 @@ export default function FarmerDashboard() {
             )}
 
             {/* Crop Recommendations from CSV */}
-            {card && cropRecommendations.length > 0 && (
-                <div className="bg-gradient-to-br from-green-50 to-white rounded-xl shadow-sm border border-green-100 p-6">
-                    <div className="flex items-center mb-4">
-                        <Sprout className="w-6 h-6 text-green-600 mr-2" />
-                        <h3 className="text-lg font-bold text-gray-800">Recommended Crops for Your Soil</h3>
-                    </div>
-                    <p className="text-sm text-gray-600 mb-4">Based on your soil analysis and CSV crop database</p>
-
-                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                        {cropRecommendations.map((crop, index) => (
-                            <motion.div
-                                key={index}
-                                whileHover={{ scale: 1.02 }}
-                                className="bg-white p-4 rounded-lg border-2 border-green-200 shadow-sm"
-                            >
-                                <div className="flex items-center justify-between mb-2">
-                                    <h4 className="font-bold text-gray-800 capitalize">{crop.crop}</h4>
-                                    <span className={`px-2 py-1 rounded-full text-xs font-bold ${crop.suitability >= 80 ? 'bg-green-100 text-green-700' :
-                                        crop.suitability >= 60 ? 'bg-yellow-100 text-yellow-700' :
-                                            'bg-orange-100 text-orange-700'
-                                        }`}>
-                                        {crop.suitability}% Match
-                                    </span>
-                                </div>
-                                <div className="space-y-1 text-xs text-gray-600">
-                                    <div className="flex justify-between">
-                                        <span>Nitrogen:</span>
-                                        <span className="font-semibold">{Math.round(crop.requirements.N)} kg/ha</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>Phosphorus:</span>
-                                        <span className="font-semibold">{Math.round(crop.requirements.P)} kg/ha</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>Potassium:</span>
-                                        <span className="font-semibold">{Math.round(crop.requirements.K)} kg/ha</span>
-                                    </div>
-                                    <div className="flex justify-between">
-                                        <span>pH:</span>
-                                        <span className="font-semibold">{crop.requirements.ph.toFixed(1)}</span>
-                                    </div>
-                                </div>
-                            </motion.div>
-                        ))}
-                    </div>
-                </div>
-            )}
-
-            {/* My Card Section - Smart Card Design */}
-            <div>
-                <h2 className="text-xl font-bold text-gray-800 mb-4 flex items-center">
-                    <Sprout className="w-6 h-6 text-green-600 mr-2" />
-                    Visual Farmer Analysis
-                </h2>
-                {card ? (
-                    <>
-                        <div ref={cardRef} className="bg-white rounded-2xl shadow-lg border-4 border-green-500 p-8 max-w-md mx-auto">
-                            {/* Farmer Name Header */}
-                            <div className="text-center mb-6">
-                                <div className="flex items-center justify-center mb-2">
-                                    <div className="w-10 h-10 bg-green-600 rounded-full flex items-center justify-center text-white text-xl font-bold">
-                                        👨‍🌾
-                                    </div>
-                                </div>
-                                <h3 className="text-2xl font-bold text-green-700">{card.farmerName}</h3>
-                            </div>
-
-                            {/* Farmer Details Box */}
-                            <div className="bg-gray-100 rounded-xl p-4 mb-6 space-y-2">
-                                <div className="flex justify-between items-center">
-                                    <span className="font-semibold text-gray-700">Village:</span>
-                                    <span className="text-gray-900">{card.village}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="font-semibold text-gray-700">State:</span>
-                                    <span className="text-gray-900">{card.state || 'N/A'}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="font-semibold text-gray-700">Farmer ID:</span>
-                                    <span className="text-gray-900 font-mono text-sm">{userProfile.farmerId}</span>
-                                </div>
-                                <div className="flex justify-between items-center">
-                                    <span className="font-semibold text-gray-700">Farm Size:</span>
-                                    <span className="text-gray-900">{card.farmSize || '2.5'} acres</span>
-                                </div>
-                            </div>
-
-                            {/* Health Gauge */}
-                            <div className="text-center mb-6">
-                                <div className="relative w-48 h-48 mx-auto">
-                                    {/* Colored ring segments */}
-                                    <svg className="w-full h-full transform -rotate-90" viewBox="0 0 100 100">
-                                        {/* Background circle */}
-                                        <circle
-                                            cx="50"
-                                            cy="50"
-                                            r="40"
-                                            fill="none"
-                                            stroke="#e5e7eb"
-                                            strokeWidth="8"
-                                        />
-                                        {/* Progress circle */}
-                                        <circle
-                                            cx="50"
-                                            cy="50"
-                                            r="40"
-                                            fill="none"
-                                            stroke={getSoilHealthColor(soilScore)}
-                                            strokeWidth="8"
-                                            strokeDasharray={`${(soilScore / 100) * 251.2} 251.2`}
-                                            strokeLinecap="round"
-                                        />
-                                    </svg>
-                                    {/* Center text */}
-                                    <div className="absolute inset-0 flex flex-col items-center justify-center">
-                                        <div className="text-5xl font-bold" style={{ color: getSoilHealthColor(soilScore) }}>
-                                            {soilScore}%
-                                        </div>
-                                        <div className="text-sm text-gray-600 mt-1">Health</div>
-                                    </div>
-                                </div>
-                            </div>
-
-                            {/* QR Code (smaller, at bottom) */}
-                            <div className="mt-6 text-center">
-                                <div className="inline-block bg-white p-2 rounded-lg border border-gray-300">
-                                    <QRCodeCanvas
-                                        value={`Farmer: ${card.farmerName}
-ID: ${userProfile.farmerId}
-Village: ${card.village}
-State: ${card.state || 'N/A'}
-Farm Size: ${card.farmSize || '2.5'} acres
-pH: ${card.ph}
-NPK: ${card.npk} mg/kg
-Organic Carbon: ${card.organicCarbon}%
-Health Score: ${soilScore}%
-GreenCoders E-Soil Smart Card`}
-                                        size={80}
-                                        level="M"
-                                        fgColor="#166534"
-                                        includeMargin={false}
-                                    />
-                                </div>
-                                <p className="text-xs text-gray-500 mt-2">Scan for details</p>
-                            </div>
+            {
+                card && cropRecommendations.length > 0 && (
+                    <div className="bg-gradient-to-br from-green-50 to-white rounded-xl shadow-sm border border-green-100 p-6">
+                        <div className="flex items-center mb-4">
+                            <Sprout className="w-6 h-6 text-green-600 mr-2" />
+                            <h3 className="text-lg font-bold text-gray-800">Recommended Crops for Your Soil</h3>
                         </div>
+                        <p className="text-sm text-gray-600 mb-4">Based on your soil analysis and CSV crop database</p>
 
-                        {/* Download Button - Outside cardRef */}
-                        <div className="mt-6 flex justify-center">
-                            <button
-                                onClick={downloadCard}
-                                className="inline-flex items-center px-6 py-3 bg-blue-600 text-white rounded-lg font-bold hover:bg-blue-700 transition-colors shadow-md"
-                            >
-                                <Download className="w-5 h-5 mr-2" />
-                                Download Card as PNG
-                            </button>
-                        </div>
-
-                        {/* AI Suggestions Section */}
-                        <div className="mt-6 bg-gradient-to-br from-blue-50 to-white rounded-xl shadow-sm border border-blue-100 p-6">
-                            <div className="flex items-center justify-between mb-4">
-                                <div className="flex items-center">
-                                    <Sparkles className="w-6 h-6 text-blue-600 mr-2" />
-                                    <h3 className="text-lg font-bold text-gray-800">AI Farming Suggestions</h3>
-                                </div>
-                                <button
-                                    onClick={toggleSpeech}
-                                    className={`flex items-center px-4 py-2 rounded-lg font-medium transition-colors ${isSpeaking
-                                        ? 'bg-red-100 text-red-700 hover:bg-red-200'
-                                        : 'bg-blue-100 text-blue-700 hover:bg-blue-200'
-                                        }`}
+                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+                            {cropRecommendations.map((crop, index) => (
+                                <motion.div
+                                    key={index}
+                                    whileHover={{ scale: 1.02 }}
+                                    className="bg-white p-4 rounded-lg border-2 border-green-200 shadow-sm"
                                 >
-                                    {isSpeaking ? (
-                                        <>
-                                            <VolumeX className="w-4 h-4 mr-2" />
-                                            Stop Voice Advisory
-                                        </>
-                                    ) : (
-                                        <>
-                                            <Volume2 className="w-4 h-4 mr-2" />
-                                            Voice Advisory
-                                        </>
-                                    )}
-                                </button>
-                            </div>
-                            {aiRecommendations ? (
-                                <div className="bg-white p-4 rounded-lg border border-blue-100 prose prose-sm max-w-none prose-p:text-gray-700 prose-headings:text-gray-800 prose-strong:text-blue-700 prose-li:text-gray-700">
-                                    <ReactMarkdown>{aiRecommendations}</ReactMarkdown>
-                                </div>
-                            ) : (
-                                <div className="bg-white p-4 rounded-lg border border-blue-100 text-center text-gray-500">
-                                    <Loader2 className="w-6 h-6 animate-spin mx-auto mb-2" />
-                                    <p>Generating AI suggestions...</p>
-                                </div>
-                            )}
+                                    <div className="flex items-center justify-between mb-2">
+                                        <h4 className="font-bold text-gray-800 capitalize">{crop.crop}</h4>
+                                        <span className={`px-2 py-1 rounded-full text-xs font-bold ${crop.suitability >= 80 ? 'bg-green-100 text-green-700' :
+                                            crop.suitability >= 60 ? 'bg-yellow-100 text-yellow-700' :
+                                                'bg-orange-100 text-orange-700'
+                                            }`}>
+                                            {crop.suitability}% Match
+                                        </span>
+                                    </div>
+                                    <div className="space-y-1 text-xs text-gray-600">
+                                        <div className="flex justify-between">
+                                            <span>Nitrogen:</span>
+                                            <span className="font-semibold">{Math.round(crop.requirements.N)} kg/ha</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span>Phosphorus:</span>
+                                            <span className="font-semibold">{Math.round(crop.requirements.P)} kg/ha</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span>Potassium:</span>
+                                            <span className="font-semibold">{Math.round(crop.requirements.K)} kg/ha</span>
+                                        </div>
+                                        <div className="flex justify-between">
+                                            <span>pH:</span>
+                                            <span className="font-semibold">{crop.requirements.ph.toFixed(1)}</span>
+                                        </div>
+                                    </div>
+                                </motion.div>
+                            ))}
                         </div>
-                    </>
-                ) : (
-                    <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
-                        <Sprout className="w-12 h-12 mx-auto mb-3 text-gray-300" />
-                        <p className="text-gray-500 mb-4">You haven't created your soil health card yet.</p>
-                        <Link
-                            to="/new-card"
-                            className="inline-flex items-center px-6 py-3 bg-green-600 text-white rounded-lg font-bold hover:bg-green-700 transition-colors"
-                        >
-                            <Plus className="w-5 h-5 mr-2" />
-                            Create Your Card
-                        </Link>
                     </div>
-                )}
-            </div>
-        </div>
+                )
+            }
+
+            {/* Advanced Features - Show if card exists */}
+            {
+                card && (
+                    <>
+                        {/* IoT Sensor Dashboard */}
+                        <div className="mt-6">
+                            <div className="flex items-center justify-between mb-4">
+                                <h2 className="text-xl font-bold text-gray-800 flex items-center">
+                                    <Activity className="w-6 h-6 text-blue-600 mr-2" />
+                                    Real-Time IoT Sensors
+                                </h2>
+                            </div>
+                            <IoTDashboard farmerId={userProfile.farmerId} location={location} />
+                        </div>
+
+                        {/* Weather Forecast */}
+                        <div className="mt-6">
+                            <h2 className="text-xl font-bold text-gray-800 mb-4">7-Day Weather Forecast</h2>
+                            <WeatherForecast location={location} />
+                        </div>
+
+                        {/* Soil Health History */}
+                        <div className="mt-6">
+                            <SoilHistoryGraph soilData={card} days={30} />
+                        </div>
+
+                        {/* Fertilizer Advisory */}
+                        {fertilizerAdvisory && (
+                            <div className="mt-6 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                                <h2 className="text-xl font-bold text-gray-800 mb-4">Fertilizer Recommendations</h2>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                        <div className="text-sm text-blue-600 mb-1">Urea (Nitrogen)</div>
+                                        <div className="text-2xl font-bold text-blue-700">
+                                            {fertilizerAdvisory.fertilizers.urea.quantity} kg
+                                        </div>
+                                        <div className="text-xs text-blue-600 mt-1">
+                                            ₹{fertilizerAdvisory.fertilizers.urea.price}/kg
+                                        </div>
+                                    </div>
+                                    <div className="bg-yellow-50 p-4 rounded-lg border border-yellow-200">
+                                        <div className="text-sm text-yellow-600 mb-1">DAP (Phosphorus)</div>
+                                        <div className="text-2xl font-bold text-yellow-700">
+                                            {fertilizerAdvisory.fertilizers.dap.quantity} kg
+                                        </div>
+                                        <div className="text-xs text-yellow-600 mt-1">
+                                            ₹{fertilizerAdvisory.fertilizers.dap.price}/kg
+                                        </div>
+                                    </div>
+                                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                                        <div className="text-sm text-purple-600 mb-1">MOP (Potassium)</div>
+                                        <div className="text-2xl font-bold text-purple-700">
+                                            {fertilizerAdvisory.fertilizers.mop.quantity} kg
+                                        </div>
+                                        <div className="text-xs text-purple-600 mt-1">
+                                            ₹{fertilizerAdvisory.fertilizers.mop.price}/kg
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                    <div className="font-semibold text-green-800 mb-2">Total Cost</div>
+                                    <div className="text-3xl font-bold text-green-700">
+                                        ₹{fertilizerAdvisory.totalCost}
+                                    </div>
+                                </div>
+
+                                <div className="mt-4">
+                                    <h3 className="font-semibold text-gray-800 mb-3">Application Schedule</h3>
+                                    <div className="space-y-2">
+                                        {fertilizerAdvisory.applicationSchedule.map((stage, idx) => (
+                                            <div key={idx} className="flex items-center justify-between p-3 bg-gray-50 rounded-lg">
+                                                <div>
+                                                    <div className="font-medium text-gray-800">{stage.stage}</div>
+                                                    <div className="text-sm text-gray-600">{stage.timing}</div>
+                                                </div>
+                                                <div className="text-lg font-bold text-green-600">
+                                                    {stage.percentage}%
+                                                </div>
+                                            </div>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+
+                        {/* Irrigation Schedule */}
+                        {irrigationSchedule && (
+                            <div className="mt-6 bg-white p-6 rounded-xl shadow-sm border border-gray-100">
+                                <h2 className="text-xl font-bold text-gray-800 mb-4">Irrigation Schedule</h2>
+
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4 mb-6">
+                                    <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                                        <div className="text-sm text-blue-600 mb-1">Daily Requirement</div>
+                                        <div className="text-2xl font-bold text-blue-700">
+                                            {irrigationSchedule.dailyRequirement} mm/day
+                                        </div>
+                                    </div>
+                                    <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                                        <div className="text-sm text-green-600 mb-1">Frequency</div>
+                                        <div className="text-2xl font-bold text-green-700">
+                                            {irrigationSchedule.frequency}
+                                        </div>
+                                    </div>
+                                    <div className="bg-purple-50 p-4 rounded-lg border border-purple-200">
+                                        <div className="text-sm text-purple-600 mb-1">Total Water/Day</div>
+                                        <div className="text-2xl font-bold text-purple-700">
+                                            {irrigationSchedule.totalWaterPerDay} L
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div className="p-4 bg-blue-50 border border-blue-200 rounded-lg mb-4">
+                                    <div className="font-semibold text-blue-800 mb-1">Current Status</div>
+                                    <div className="text-sm text-blue-700">{irrigationSchedule.recommendation}</div>
+                                </div>
+
+                                <div className="p-4 bg-gray-50 rounded-lg">
+                                    <div className="font-semibold text-gray-800 mb-2">Recommended Method</div>
+                                    <div className="text-gray-700">{irrigationSchedule.method}</div>
+                                </div>
+
+                                <div className="mt-4">
+                                    <h3 className="font-semibold text-gray-800 mb-2">Critical Growth Stages</h3>
+                                    <div className="flex flex-wrap gap-2">
+                                        {irrigationSchedule.criticalStages.map((stage, idx) => (
+                                            <span key={idx} className="px-3 py-1 bg-yellow-100 text-yellow-700 rounded-full text-sm font-medium">
+                                                {stage}
+                                            </span>
+                                        ))}
+                                    </div>
+                                </div>
+                            </div>
+                        )}
+                    </>
+                )
+            }
+        </div >
     );
 }

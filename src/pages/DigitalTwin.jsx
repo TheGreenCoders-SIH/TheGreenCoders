@@ -1,166 +1,420 @@
-import React, { useState } from 'react';
-import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, AreaChart, Area } from 'recharts';
-import { Sprout, Droplets, Sun, Wind } from 'lucide-react';
+// Digital Twin - What-If Simulation Page
+import React, { useState, useEffect } from 'react';
+import { useAuth } from '../contexts/AuthContext';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
+import { Loader2, RefreshCw, TrendingUp, DollarSign, Sprout, Droplets } from 'lucide-react';
+import { calculateYieldPrediction, calculateCostAnalysis, calculateProfitAnalysis, generateRecommendations } from '../lib/simulationEngine';
 import { motion } from 'framer-motion';
 
-const MOCK_DATA = [
-    { day: 'Day 10', yield: 20 },
-    { day: 'Day 20', yield: 35 },
-    { day: 'Day 30', yield: 50 },
-    { day: 'Day 40', yield: 65 },
-    { day: 'Day 50', yield: 78 },
-    { day: 'Day 60', yield: 85 },
-    { day: 'Day 70', yield: 92 },
-    { day: 'Day 80', yield: 95 },
-    { day: 'Day 90', yield: 100 },
-];
-
 export default function DigitalTwin() {
-    const [irrigation, setIrrigation] = useState(50);
-    const [fertilizer, setFertilizer] = useState(50);
-    const [sowingDate, setSowingDate] = useState('2023-11-01');
-    const [simulating, setSimulating] = useState(false);
-    const [data, setData] = useState(MOCK_DATA);
+    const { userProfile } = useAuth();
+    const [loading, setLoading] = useState(true);
+    const [card, setCard] = useState(null);
 
-    const runSimulation = () => {
-        setSimulating(true);
-        // Simulate calculation delay
-        setTimeout(() => {
-            // Simple mock logic to vary the graph based on inputs
-            const factor = (irrigation + fertilizer) / 100;
-            const newData = MOCK_DATA.map(d => ({
-                ...d,
-                yield: Math.min(100, Math.round(d.yield * factor * 1.1))
-            }));
-            setData(newData);
-            setSimulating(false);
-        }, 1500);
+    // Current scenario (from actual farm data)
+    const [currentScenario, setCurrentScenario] = useState(null);
+
+    // Simulated scenario (user-modified)
+    const [simulatedScenario, setSimulatedScenario] = useState(null);
+
+    // Results
+    const [currentResults, setCurrentResults] = useState(null);
+    const [simulatedResults, setSimulatedResults] = useState(null);
+    const [recommendations, setRecommendations] = useState([]);
+
+    useEffect(() => {
+        if (userProfile) {
+            loadFarmData();
+        }
+    }, [userProfile]);
+
+    const loadFarmData = async () => {
+        try {
+            const farmerRef = doc(db, 'farmers', userProfile.farmerId);
+            const farmerSnap = await getDoc(farmerRef);
+
+            if (farmerSnap.exists()) {
+                const cardData = farmerSnap.data().card;
+                setCard(cardData);
+
+                // Initialize current scenario from farm data
+                const scenario = {
+                    cropType: 'Rice',
+                    soilNPK: cardData.npk || '120:60:80',
+                    irrigation: 'adequate',
+                    fertilizer: 'moderate',
+                    organicCarbon: parseFloat(cardData.organicCarbon) || 0.75,
+                    ph: parseFloat(cardData.ph) || 7.0,
+                    farmSize: parseFloat(cardData.farmSize) || 2.5,
+                    weather: {
+                        temp: 28,
+                        humidity: 70
+                    }
+                };
+
+                setCurrentScenario(scenario);
+                setSimulatedScenario({ ...scenario });
+
+                // Calculate initial results
+                const currentYield = calculateYieldPrediction(scenario);
+                const currentCost = calculateCostAnalysis(scenario);
+                const currentProfit = calculateProfitAnalysis(scenario);
+
+                setCurrentResults({
+                    yield: currentYield,
+                    cost: currentCost,
+                    profit: currentProfit
+                });
+
+                setSimulatedResults({
+                    yield: currentYield,
+                    cost: currentCost,
+                    profit: currentProfit
+                });
+            }
+            setLoading(false);
+        } catch (error) {
+            console.error('Error loading farm data:', error);
+            setLoading(false);
+        }
     };
 
-    return (
-        <div className="space-y-8">
-            <div className="flex items-center justify-between">
-                <div>
-                    <h2 className="text-2xl font-bold text-gray-800">Smart Digital Twin</h2>
-                    <p className="text-gray-500">Simulate crop growth scenarios based on inputs.</p>
-                </div>
-                <div className="bg-purple-100 p-3 rounded-full">
-                    <Sprout className="w-6 h-6 text-purple-600" />
+    const handleScenarioChange = (field, value) => {
+        const updated = { ...simulatedScenario, [field]: value };
+        setSimulatedScenario(updated);
+
+        // Recalculate results
+        const yieldData = calculateYieldPrediction(updated);
+        const costData = calculateCostAnalysis(updated);
+        const profitData = calculateProfitAnalysis(updated);
+
+        setSimulatedResults({
+            yield: yieldData,
+            cost: costData,
+            profit: profitData
+        });
+
+        // Generate recommendations
+        const recs = generateRecommendations(currentScenario, updated);
+        setRecommendations(recs);
+    };
+
+    const resetSimulation = () => {
+        setSimulatedScenario({ ...currentScenario });
+        setSimulatedResults({ ...currentResults });
+        setRecommendations([]);
+    };
+
+    if (loading) {
+        return (
+            <div className="min-h-screen flex items-center justify-center">
+                <Loader2 className="w-8 h-8 text-green-600 animate-spin" />
+            </div>
+        );
+    }
+
+    if (!card) {
+        return (
+            <div className="max-w-2xl mx-auto mt-8">
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-8 text-center">
+                    <p className="text-gray-500">Please create your soil health card first to use Digital Twin simulation.</p>
                 </div>
             </div>
+        );
+    }
 
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Controls Panel */}
-                <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-200 space-y-6">
-                    <h3 className="font-semibold text-gray-700 mb-4">Simulation Parameters</h3>
+    const yieldImprovement = ((simulatedResults.yield.totalYield - currentResults.yield.totalYield) / currentResults.yield.totalYield * 100);
+    const profitImprovement = ((simulatedResults.profit.profit - currentResults.profit.profit) / Math.abs(currentResults.profit.profit) * 100);
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                            <Sun className="w-4 h-4 mr-2 text-orange-500" /> Sowing Date
-                        </label>
-                        <input
-                            type="date"
-                            value={sowingDate}
-                            onChange={(e) => setSowingDate(e.target.value)}
-                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-purple-500 outline-none"
-                        />
-                    </div>
+    return (
+        <div className="max-w-7xl mx-auto space-y-6">
+            {/* Header */}
+            <div className="bg-gradient-to-r from-blue-700 to-indigo-800 text-white rounded-2xl p-6">
+                <h1 className="text-2xl font-bold mb-1">🔮 Digital Twin Simulation</h1>
+                <p className="text-blue-100">Predict outcomes of different farming scenarios</p>
+            </div>
 
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                            <Droplets className="w-4 h-4 mr-2 text-blue-500" /> Irrigation Level ({irrigation}%)
-                        </label>
-                        <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={irrigation}
-                            onChange={(e) => setIrrigation(parseInt(e.target.value))}
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-blue-600"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                            <span>Dry</span>
-                            <span>Optimal</span>
-                            <span>Flood</span>
-                        </div>
-                    </div>
-
-                    <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-2 flex items-center">
-                            <Wind className="w-4 h-4 mr-2 text-green-500" /> Fertilizer Dose ({fertilizer}%)
-                        </label>
-                        <input
-                            type="range"
-                            min="0"
-                            max="100"
-                            value={fertilizer}
-                            onChange={(e) => setFertilizer(parseInt(e.target.value))}
-                            className="w-full h-2 bg-gray-200 rounded-lg appearance-none cursor-pointer accent-green-600"
-                        />
-                        <div className="flex justify-between text-xs text-gray-500 mt-1">
-                            <span>Low</span>
-                            <span>Standard</span>
-                            <span>High</span>
-                        </div>
-                    </div>
-
+            {/* Scenario Builder */}
+            <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold text-gray-800">What-If Scenario Builder</h2>
                     <button
-                        onClick={runSimulation}
-                        disabled={simulating}
-                        className="w-full bg-purple-600 text-white font-bold py-3 rounded-lg hover:bg-purple-700 transition-colors shadow-md disabled:opacity-70"
+                        onClick={resetSimulation}
+                        className="flex items-center px-4 py-2 bg-gray-100 text-gray-700 rounded-lg hover:bg-gray-200 transition-colors"
                     >
-                        {simulating ? "Simulating..." : "Run Simulation"}
+                        <RefreshCw className="w-4 h-4 mr-2" />
+                        Reset
                     </button>
                 </div>
 
-                {/* Visualization Panel */}
-                <div className="lg:col-span-2 bg-white p-6 rounded-xl shadow-sm border border-gray-200">
-                    <h3 className="font-semibold text-gray-700 mb-6">Projected Yield Growth</h3>
-                    <div className="h-[300px] w-full">
-                        <ResponsiveContainer width="100%" height="100%">
-                            <AreaChart data={data}>
-                                <defs>
-                                    <linearGradient id="colorYield" x1="0" y1="0" x2="0" y2="1">
-                                        <stop offset="5%" stopColor="#9333ea" stopOpacity={0.8} />
-                                        <stop offset="95%" stopColor="#9333ea" stopOpacity={0} />
-                                    </linearGradient>
-                                </defs>
-                                <CartesianGrid strokeDasharray="3 3" vertical={false} />
-                                <XAxis dataKey="day" axisLine={false} tickLine={false} />
-                                <YAxis axisLine={false} tickLine={false} />
-                                <Tooltip
-                                    contentStyle={{ borderRadius: '8px', border: 'none', boxShadow: '0 4px 6px -1px rgb(0 0 0 / 0.1)' }}
-                                />
-                                <Area
-                                    type="monotone"
-                                    dataKey="yield"
-                                    stroke="#9333ea"
-                                    fillOpacity={1}
-                                    fill="url(#colorYield)"
-                                    strokeWidth={3}
-                                />
-                            </AreaChart>
-                        </ResponsiveContainer>
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+                    {/* Crop Type */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <Sprout className="w-4 h-4 inline mr-1" />
+                            Crop Type
+                        </label>
+                        <select
+                            value={simulatedScenario.cropType}
+                            onChange={(e) => handleScenarioChange('cropType', e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="Rice">Rice</option>
+                            <option value="Wheat">Wheat</option>
+                            <option value="Maize">Maize</option>
+                            <option value="Cotton">Cotton</option>
+                            <option value="Soybean">Soybean</option>
+                            <option value="Sugarcane">Sugarcane</option>
+                            <option value="Potato">Potato</option>
+                            <option value="Tomato">Tomato</option>
+                            <option value="Onion">Onion</option>
+                        </select>
                     </div>
 
-                    <div className="grid grid-cols-3 gap-4 mt-6">
-                        <div className="bg-purple-50 p-4 rounded-lg text-center">
-                            <div className="text-2xl font-bold text-purple-700">
-                                {Math.round(data[data.length - 1].yield)}%
-                            </div>
-                            <div className="text-xs text-purple-600">Est. Yield Efficiency</div>
+                    {/* NPK Ratio */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            NPK Ratio (N:P:K)
+                        </label>
+                        <input
+                            type="text"
+                            value={simulatedScenario.soilNPK}
+                            onChange={(e) => handleScenarioChange('soilNPK', e.target.value)}
+                            placeholder="120:60:80"
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        />
+                    </div>
+
+                    {/* Irrigation */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            <Droplets className="w-4 h-4 inline mr-1" />
+                            Irrigation Level
+                        </label>
+                        <select
+                            value={simulatedScenario.irrigation}
+                            onChange={(e) => handleScenarioChange('irrigation', e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="insufficient">Insufficient</option>
+                            <option value="adequate">Adequate</option>
+                            <option value="optimal">Optimal</option>
+                            <option value="excessive">Excessive</option>
+                        </select>
+                    </div>
+
+                    {/* Fertilizer */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Fertilizer Application
+                        </label>
+                        <select
+                            value={simulatedScenario.fertilizer}
+                            onChange={(e) => handleScenarioChange('fertilizer', e.target.value)}
+                            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                        >
+                            <option value="low">Low</option>
+                            <option value="moderate">Moderate</option>
+                            <option value="recommended">Recommended</option>
+                            <option value="high">High</option>
+                        </select>
+                    </div>
+
+                    {/* pH Level */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            pH Level: {simulatedScenario.ph}
+                        </label>
+                        <input
+                            type="range"
+                            min="4"
+                            max="10"
+                            step="0.1"
+                            value={simulatedScenario.ph}
+                            onChange={(e) => handleScenarioChange('ph', parseFloat(e.target.value))}
+                            className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>Acidic (4)</span>
+                            <span>Neutral (7)</span>
+                            <span>Alkaline (10)</span>
                         </div>
-                        <div className="bg-green-50 p-4 rounded-lg text-center">
-                            <div className="text-2xl font-bold text-green-700">Low</div>
-                            <div className="text-xs text-green-600">Pest Risk</div>
-                        </div>
-                        <div className="bg-blue-50 p-4 rounded-lg text-center">
-                            <div className="text-2xl font-bold text-blue-700">₹45k</div>
-                            <div className="text-xs text-blue-600">Proj. Profit/Acre</div>
+                    </div>
+
+                    {/* Organic Carbon */}
+                    <div>
+                        <label className="block text-sm font-semibold text-gray-700 mb-2">
+                            Organic Carbon: {simulatedScenario.organicCarbon}%
+                        </label>
+                        <input
+                            type="range"
+                            min="0.1"
+                            max="2"
+                            step="0.05"
+                            value={simulatedScenario.organicCarbon}
+                            onChange={(e) => handleScenarioChange('organicCarbon', parseFloat(e.target.value))}
+                            className="w-full"
+                        />
+                        <div className="flex justify-between text-xs text-gray-500 mt-1">
+                            <span>Low (0.1%)</span>
+                            <span>Good (0.75%)</span>
+                            <span>Excellent (2%)</span>
                         </div>
                     </div>
                 </div>
             </div>
+
+            {/* Comparison View */}
+            <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
+                {/* Current State */}
+                <motion.div
+                    initial={{ opacity: 0, x: -20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="bg-gradient-to-br from-gray-50 to-white rounded-xl shadow-sm border-2 border-gray-300 p-6"
+                >
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">📊 Current State</h3>
+
+                    <div className="space-y-4">
+                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-semibold text-green-700">Expected Yield</span>
+                                <TrendingUp className="w-5 h-5 text-green-600" />
+                            </div>
+                            <div className="text-3xl font-bold text-green-800">
+                                {currentResults.yield.totalYield} quintals
+                            </div>
+                            <div className="text-sm text-green-600 mt-1">
+                                {currentResults.yield.yieldPerAcre} quintals/acre
+                            </div>
+                        </div>
+
+                        <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-semibold text-red-700">Total Cost</span>
+                                <DollarSign className="w-5 h-5 text-red-600" />
+                            </div>
+                            <div className="text-3xl font-bold text-red-800">
+                                ₹{currentResults.cost.total.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-red-600 mt-2 space-y-1">
+                                <div>Fertilizer: ₹{currentResults.cost.fertilizer.toLocaleString()}</div>
+                                <div>Irrigation: ₹{currentResults.cost.irrigation.toLocaleString()}</div>
+                                <div>Seeds: ₹{currentResults.cost.seeds.toLocaleString()}</div>
+                            </div>
+                        </div>
+
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-semibold text-blue-700">Expected Profit</span>
+                                <DollarSign className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div className="text-3xl font-bold text-blue-800">
+                                ₹{currentResults.profit.profit.toLocaleString()}
+                            </div>
+                            <div className="text-sm text-blue-600 mt-1">
+                                ROI: {currentResults.profit.roi}%
+                            </div>
+                        </div>
+                    </div>
+                </motion.div>
+
+                {/* Simulated State */}
+                <motion.div
+                    initial={{ opacity: 0, x: 20 }}
+                    animate={{ opacity: 1, x: 0 }}
+                    className="bg-gradient-to-br from-blue-50 to-white rounded-xl shadow-sm border-2 border-blue-400 p-6"
+                >
+                    <h3 className="text-lg font-bold text-blue-800 mb-4">🔮 Simulated Outcome</h3>
+
+                    <div className="space-y-4">
+                        <div className="bg-green-50 p-4 rounded-lg border border-green-200">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-semibold text-green-700">Predicted Yield</span>
+                                <TrendingUp className="w-5 h-5 text-green-600" />
+                            </div>
+                            <div className="text-3xl font-bold text-green-800">
+                                {simulatedResults.yield.totalYield} quintals
+                            </div>
+                            <div className="text-sm text-green-600 mt-1">
+                                {simulatedResults.yield.yieldPerAcre} quintals/acre
+                            </div>
+                            {yieldImprovement !== 0 && (
+                                <div className={`text-xs font-semibold mt-2 ${yieldImprovement > 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                    {yieldImprovement > 0 ? '↑' : '↓'} {Math.abs(yieldImprovement).toFixed(1)}% vs current
+                                </div>
+                            )}
+                        </div>
+
+                        <div className="bg-red-50 p-4 rounded-lg border border-red-200">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-semibold text-red-700">Estimated Cost</span>
+                                <DollarSign className="w-5 h-5 text-red-600" />
+                            </div>
+                            <div className="text-3xl font-bold text-red-800">
+                                ₹{simulatedResults.cost.total.toLocaleString()}
+                            </div>
+                            <div className="text-xs text-red-600 mt-2 space-y-1">
+                                <div>Fertilizer: ₹{simulatedResults.cost.fertilizer.toLocaleString()}</div>
+                                <div>Irrigation: ₹{simulatedResults.cost.irrigation.toLocaleString()}</div>
+                                <div>Seeds: ₹{simulatedResults.cost.seeds.toLocaleString()}</div>
+                            </div>
+                        </div>
+
+                        <div className="bg-blue-50 p-4 rounded-lg border border-blue-200">
+                            <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-semibold text-blue-700">Estimated Profit</span>
+                                <DollarSign className="w-5 h-5 text-blue-600" />
+                            </div>
+                            <div className="text-3xl font-bold text-blue-800">
+                                ₹{simulatedResults.profit.profit.toLocaleString()}
+                            </div>
+                            <div className="text-sm text-blue-600 mt-1">
+                                ROI: {simulatedResults.profit.roi}%
+                            </div>
+                            {profitImprovement !== 0 && !isNaN(profitImprovement) && (
+                                <div className={`text-xs font-semibold mt-2 ${profitImprovement > 0 ? 'text-green-700' : 'text-red-700'}`}>
+                                    {profitImprovement > 0 ? '↑' : '↓'} {Math.abs(profitImprovement).toFixed(1)}% vs current
+                                </div>
+                            )}
+                        </div>
+                    </div>
+                </motion.div>
+            </div>
+
+            {/* Recommendations */}
+            {recommendations.length > 0 && (
+                <div className="bg-white rounded-xl shadow-sm border border-gray-200 p-6">
+                    <h3 className="text-lg font-bold text-gray-800 mb-4">💡 AI Recommendations</h3>
+                    <div className="space-y-3">
+                        {recommendations.map((rec, idx) => (
+                            <motion.div
+                                key={idx}
+                                initial={{ opacity: 0, y: 10 }}
+                                animate={{ opacity: 1, y: 0 }}
+                                transition={{ delay: idx * 0.1 }}
+                                className={`p-4 rounded-lg border-l-4 ${rec.priority === 'high' ? 'bg-orange-50 border-orange-500' :
+                                        rec.priority === 'medium' ? 'bg-blue-50 border-blue-500' :
+                                            'bg-green-50 border-green-500'
+                                    }`}
+                            >
+                                <div className="flex items-start justify-between">
+                                    <div className="flex-1">
+                                        <div className={`text-xs font-bold uppercase mb-1 ${rec.priority === 'high' ? 'text-orange-700' :
+                                                rec.priority === 'medium' ? 'text-blue-700' :
+                                                    'text-green-700'
+                                            }`}>
+                                            {rec.type} • {rec.priority} priority
+                                        </div>
+                                        <p className="text-sm text-gray-800 font-medium mb-1">{rec.message}</p>
+                                        <p className="text-xs text-gray-600">{rec.action}</p>
+                                    </div>
+                                </div>
+                            </motion.div>
+                        ))}
+                    </div>
+                </div>
+            )}
         </div>
     );
 }
