@@ -1,0 +1,48 @@
+# Node modules and frontend build
+node_modules/
+dist/
+.vite/
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+backend/venv/
+backend/__pycache__/
+.venv/
+
+# Environment
+.env.local
+.env.*.local
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Firebase
+.firebase/
+.firebaserc
+firebase.json
+
+# Documentation
+README.md
+docs/
+*.md
+
+# Other
+trial.html
+debug_recs.js
+start.bat
+start.sh
