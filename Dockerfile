@@ -16,11 +16,8 @@ COPY backend/ ./backend/
 # Copy models directory
 COPY models/ ./models/
 
-# Copy .env file (will be overridden by Cloud Run env vars)
-COPY .env .env
-
 # Expose port
-EXPOSE 8080
+EXPOSE 8000
 
 # Run the application
-CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8080"]
+CMD ["uvicorn", "backend.main:app", "--host", "0.0.0.0", "--port", "8000"]
