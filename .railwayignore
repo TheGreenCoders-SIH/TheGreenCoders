@@ -1,8 +1,12 @@
-# Frontend Source and Build
+# ============================================
+# Railway Backend Deployment - Ignore Frontend
+# ============================================
+# This file ensures ONLY backend files are deployed to Railway
+
+# FRONTEND - Exclude Everything
 src/
 public/
 dist/
-node_modules/
 index.html
 vite.config.js
 tailwind.config.js
@@ -10,42 +14,54 @@ postcss.config.js
 eslint.config.js
 package.json
 package-lock.json
+node_modules/
 
-# Git
-.git/
-.gitignore
-
-# Firebase
+# FIREBASE - Not needed for Railway
 .firebase/
 firebase.json
 .firebaserc
 functions/
 
-# Environment Variables (Railway handles these securely)
+# ENVIRONMENT - Railway uses dashboard variables
 .env
-.env.example
-.env.local
+.env.*
 
-# Documentation & Guides
-docs/
+# DOCUMENTATION
 *.md
-# Keep specific guides if needed, but generally not needed for prod build
+docs/
 
-# Local Scripts & Temp Files
+# GIT
+.git/
+.gitignore
+
+# IDE
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# PYTHON CACHE
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+.Python
+
+# TEMP FILES
+*.log
+*.tmp
+*.bak
 start.bat
 start.sh
 debug_recs.js
 trial.html
 credentials.txt
-__pycache__/
-*.pyc
 
-# IDE Settings
-.vscode/
-.idea/
-
-# Explicitly Keep (Implicitly kept by not ignoring, but listed for clarity)
+# ============================================
+# KEEP THESE (Backend essentials)
+# ============================================
 # backend/
 # models/
 # Dockerfile
 # railway.json
+# .railwayignore
