@@ -4,6 +4,8 @@ import { Bell, MessageSquare, Save, CheckCircle } from 'lucide-react';
 import smsService from '../lib/twilioSMS';
 import { useAuth } from '../contexts/AuthContext';
 import { motion } from 'framer-motion';
+import { doc, getDoc } from 'firebase/firestore';
+import { db } from '../lib/firebase';
 
 export default function NotificationSettings() {
     const { userProfile } = useAuth();
@@ -27,15 +29,34 @@ export default function NotificationSettings() {
             setPreferences(JSON.parse(savedPrefs));
         }
 
-        const savedPhone = localStorage.getItem('notification_phone');
-        if (savedPhone) {
-            setPhoneNumber(savedPhone);
-        }
+        // Load phone number from localStorage or fetch from card
+        const loadPhoneNumber = async () => {
+            const savedPhone = localStorage.getItem('notification_phone');
+            if (savedPhone) {
+                setPhoneNumber(savedPhone);
+            } else if (userProfile?.farmerId) {
+                // Fetch phone from farmer's card
+                try {
+                    const farmerRef = doc(db, 'farmers', userProfile.farmerId);
+                    const farmerSnap = await getDoc(farmerRef);
+                    if (farmerSnap.exists()) {
+                        const cardData = farmerSnap.data().card;
+                        if (cardData?.phone) {
+                            setPhoneNumber(cardData.phone);
+                        }
+                    }
+                } catch (error) {
+                    console.error('Error fetching phone from card:', error);
+                }
+            }
+        };
+
+        loadPhoneNumber();
 
         // Load SMS history
         const smsHistory = smsService.getHistory(20);
         setHistory(smsHistory);
-    }, []);
+    }, [userProfile]);
 
     const handleSave = () => {
         // Validate phone number

@@ -11,7 +11,6 @@ class SMSService {
     }
 
     // Send SMS (mock or real)
-    // Send SMS (mock or real)
     async sendSMS(to, message) {
         if (this.mockMode) {
             return this.sendMockSMS(to, message);
@@ -19,6 +18,10 @@ class SMSService {
 
         try {
             const API_URL = import.meta.env.VITE_ML_API_URL || 'http://localhost:8000';
+            console.log('📡 Sending SMS via backend:', API_URL);
+            console.log('📞 To:', to);
+            console.log('💬 Message:', message);
+
             const response = await fetch(`${API_URL}/send-sms`, {
                 method: 'POST',
                 headers: {
@@ -27,12 +30,22 @@ class SMSService {
                 body: JSON.stringify({ to, message }),
             });
 
+            console.log('📥 Response status:', response.status);
+
             if (!response.ok) {
-                const errorData = await response.json();
-                throw new Error(errorData.detail || 'Failed to send SMS');
+                let errorDetail = 'Failed to send SMS';
+                try {
+                    const errorData = await response.json();
+                    errorDetail = errorData.detail || errorDetail;
+                    console.error('❌ Error response:', errorData);
+                } catch (e) {
+                    console.error('❌ Could not parse error response');
+                }
+                throw new Error(errorDetail);
             }
 
             const data = await response.json();
+            console.log('✅ SMS sent successfully:', data);
 
             // Log success locally for history
             const smsRecord = {
@@ -62,7 +75,8 @@ class SMSService {
             };
 
         } catch (error) {
-            console.error('SMS Send Error:', error);
+            console.error('❌ SMS Send Error:', error);
+            console.error('Error message:', error.message);
             return {
                 success: false,
                 error: error.message
