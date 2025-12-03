@@ -100,10 +100,7 @@ async def root():
 
 @app.get("/health")
 async def health_check():
-    return {
-        "status": "healthy",
-        "model_status": "loaded" if model is not None else "not loaded"
-    }
+    return {"status": "ok"}
 
 @app.post("/predict", response_model=CropRecommendation)
 async def predict_crop(soil_data: SoilData):
@@ -279,4 +276,5 @@ async def send_sms(request: SMSRequest):
 
 if __name__ == "__main__":
     import uvicorn
-    uvicorn.run(app, host="0.0.0.0", port=8000)
+    port = int(os.environ.get("PORT", 8000))
+    uvicorn.run(app, host="0.0.0.0", port=port)
