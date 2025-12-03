@@ -69,7 +69,7 @@ export default function NotificationSettings() {
         );
 
         if (result.success) {
-            alert('Test SMS sent successfully! (Mock mode)');
+            alert(result.mock ? 'Test SMS sent successfully! (Mock mode)' : 'Test SMS sent successfully!');
             // Reload history
             setHistory(smsService.getHistory(20));
         } else {

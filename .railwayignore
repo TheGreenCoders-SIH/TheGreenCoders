@@ -1,119 +1,51 @@
-# ============================================
-# RAILWAY IGNORE - Backend Only Deployment
-# ============================================
-# This file ensures Railway only deploys the backend
-# and ignores all frontend files and dependencies
-
-# ============================================
-# FRONTEND FILES & DIRECTORIES
-# ============================================
-
-# React/Vite Frontend Source
+# Frontend Source and Build
 src/
 public/
-index.html
-trial.html
-
-# Frontend Configuration
-vite.config.js
-postcss.config.js
-tailwind.config.js
-eslint.config.js
-
-# Frontend Dependencies
+dist/
 node_modules/
+index.html
+vite.config.js
+tailwind.config.js
+postcss.config.js
+eslint.config.js
 package.json
 package-lock.json
 
-# Frontend Build Output
-dist/
-.vite/
-build/
-
-# ============================================
-# FIREBASE DEPLOYMENT
-# ============================================
-.firebase/
-.firebaserc
-firebase.json
-FIREBASE_HOSTING_GUIDE.md
-
-# ============================================
-# DEVELOPMENT FILES
-# ============================================
-
-# Python Virtual Environment
-backend/venv/
-backend/__pycache__/
-__pycache__/
-*.py[cod]
-*$py.class
-*.so
-.Python
-.venv/
-venv/
-
-# Environment Files (use Railway dashboard for env vars)
-.env.local
-.env.*.local
-
-# IDE & Editor
-.vscode/
-.idea/
-*.swp
-*.swo
-*.sublime-*
-
-# ============================================
-# VERSION CONTROL & OS
-# ============================================
+# Git
 .git/
 .gitignore
-.gitattributes
-.DS_Store
-Thumbs.db
-desktop.ini
 
-# ============================================
-# DOCUMENTATION & GUIDES
-# ============================================
-README.md
+# Firebase
+.firebase/
+firebase.json
+.firebaserc
+functions/
+
+# Environment Variables (Railway handles these securely)
+.env
+.env.example
+.env.local
+
+# Documentation & Guides
 docs/
-DEPLOYMENT.md
-FIREBASE_HOSTING_GUIDE.md
-RAILWAY_WEB_DEPLOYMENT.md
-RENDER_DEPLOYMENT_GUIDE.md
-BACKEND_DEPLOYMENT_GUIDE.md
-ML_INTEGRATION.md
 *.md
+# Keep specific guides if needed, but generally not needed for prod build
 
-# ============================================
-# SCRIPTS & UTILITIES
-# ============================================
+# Local Scripts & Temp Files
 start.bat
 start.sh
 debug_recs.js
-
-# ============================================
-# OTHER PLATFORM CONFIGS
-# ============================================
-render.yaml
-
-# ============================================
-# MISC
-# ============================================
+trial.html
 credentials.txt
-GoogleCloudSDKInstaller.exe
-data/
+__pycache__/
+*.pyc
 
-# ============================================
-# IMPORTANT: KEEP THESE FOR BACKEND
-# ============================================
-# The following are NOT ignored (needed for backend):
-# - backend/
-# - models/
-# - .env (for Railway env vars)
-# - Dockerfile
-# - railway.json
-# - backend/requirements.txt
-# - backend/main.py
+# IDE Settings
+.vscode/
+.idea/
+
+# Explicitly Keep (Implicitly kept by not ignoring, but listed for clarity)
+# backend/
+# models/
+# Dockerfile
+# railway.json

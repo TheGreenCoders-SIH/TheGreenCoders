@@ -7,6 +7,7 @@ import pandas as pd
 from pathlib import Path
 import os
 import google.generativeai as genai
+from twilio.rest import Client
 from dotenv import load_dotenv
 
 # Load environment variables from root .env
@@ -23,6 +24,11 @@ if not GOOGLE_API_KEY:
     print("⚠️ WARNING: VITE_GEMINI_API_KEY not found in .env file")
 else:
     genai.configure(api_key=GOOGLE_API_KEY)
+
+# Configure Twilio
+TWILIO_ACCOUNT_SID = os.getenv('VITE_TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('VITE_TWILIO_AUTH_TOKEN')
+TWILIO_MESSAGING_SERVICE_SID = os.getenv('VITE_TWILIO_MESSAGING_SERVICE_SID')
 
 # Initialize FastAPI app
 app = FastAPI(title="GreenCoders Crop Recommendation API")
@@ -76,6 +82,10 @@ class ScheduleRequest(BaseModel):
 
 class RecommendationRequest(BaseModel):
     soilData: dict
+
+class SMSRequest(BaseModel):
+    to: str
+    message: str
 
 # --- Endpoints ---
 
@@ -244,6 +254,28 @@ async def analyze_image(
         return {"analysis": response.text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image analysis error: {str(e)}")
+
+@app.post("/send-sms")
+async def send_sms(request: SMSRequest):
+    if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
+        raise HTTPException(status_code=500, detail="Twilio credentials not configured")
+    
+    try:
+        client = Client(TWILIO_ACCOUNT_SID, TWILIO_AUTH_TOKEN)
+        
+        message_args = {
+            "to": request.to,
+            "body": request.message
+        }
+        
+        if TWILIO_MESSAGING_SERVICE_SID:
+            message_args["messaging_service_sid"] = TWILIO_MESSAGING_SERVICE_SID
+            
+        message = client.messages.create(**message_args)
+        
+        return {"status": "success", "sid": message.sid}
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Failed to send SMS: {str(e)}")
 
 if __name__ == "__main__":
     import uvicorn

@@ -11,15 +11,63 @@ class SMSService {
     }
 
     // Send SMS (mock or real)
+    // Send SMS (mock or real)
     async sendSMS(to, message) {
         if (this.mockMode) {
             return this.sendMockSMS(to, message);
         }
 
-        // Real Twilio implementation (requires backend)
-        // For security, Twilio should be called from backend, not frontend
-        console.warn('Real SMS sending requires backend implementation');
-        return this.sendMockSMS(to, message);
+        try {
+            const API_URL = import.meta.env.VITE_ML_API_URL || 'http://localhost:8000';
+            const response = await fetch(`${API_URL}/send-sms`, {
+                method: 'POST',
+                headers: {
+                    'Content-Type': 'application/json',
+                },
+                body: JSON.stringify({ to, message }),
+            });
+
+            if (!response.ok) {
+                const errorData = await response.json();
+                throw new Error(errorData.detail || 'Failed to send SMS');
+            }
+
+            const data = await response.json();
+
+            // Log success locally for history
+            const smsRecord = {
+                id: data.sid,
+                to,
+                from: 'Twilio',
+                message,
+                status: 'sent',
+                timestamp: new Date(),
+                mock: false
+            };
+
+            this.sentMessages.push(smsRecord);
+
+            // Limit stored messages
+            if (this.sentMessages.length > 100) {
+                this.sentMessages.shift();
+            }
+
+            this.saveTolocalStorage();
+
+            return {
+                success: true,
+                messageId: data.sid,
+                status: 'sent',
+                mock: false
+            };
+
+        } catch (error) {
+            console.error('SMS Send Error:', error);
+            return {
+                success: false,
+                error: error.message
+            };
+        }
     }
 
     // Mock SMS sending

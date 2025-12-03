@@ -1,0 +1,14 @@
+functions-framework==3.*
+firebase-functions
+firebase-admin
+fastapi
+uvicorn
+python-multipart
+google-generativeai
+python-dotenv
+pandas
+numpy
+scikit-learn
+joblib
+pydantic
+a2wsgi
