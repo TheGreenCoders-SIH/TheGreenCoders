@@ -1,4 +1,4 @@
-// Image Upload Component for Pest Detection
+// Image Upload Component for Disease Detection
 import React, { useState, useRef } from 'react';
 import { Upload, Camera, X, Image as ImageIcon } from 'lucide-react';
 import Webcam from 'react-webcam';
@@ -89,8 +89,8 @@ export default function ImageUpload({ onImageCapture, maxSize = 5 }) {
                     onDragOver={handleDrag}
                     onDrop={handleDrop}
                     className={`border-2 border-dashed rounded-xl p-8 text-center transition-all ${dragActive
-                            ? 'border-green-500 bg-green-50'
-                            : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'
+                        ? 'border-green-500 bg-green-50'
+                        : 'border-gray-300 hover:border-green-400 hover:bg-gray-50'
                         }`}
                 >
                     <div className="flex flex-col items-center">

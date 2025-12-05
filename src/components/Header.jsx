@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Sprout, LogOut, Shield, User, Bug, Bell, CreditCard } from 'lucide-react';
+import { Sprout, LogOut, Shield, User, Activity, Bell, CreditCard } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LanguageSelector from './LanguageSelector';
 
@@ -64,7 +64,7 @@ export default function Header() {
                         </Link>
                     )}
 
-                    {/* Pest Detection - Farmers only */}
+                    {/* Disease Detection - Farmers only */}
                     {isFarmer && (
                         <Link
                             to="/pest-detection"
@@ -73,8 +73,8 @@ export default function Header() {
                                 : 'text-gray-700 hover:bg-green-50'
                                 }`}
                         >
-                            <Bug className="w-4 h-4 mr-1" />
-                            Pest Detection
+                            <Activity className="w-4 h-4 mr-1" />
+                            Disease Detection
                         </Link>
                     )}
 

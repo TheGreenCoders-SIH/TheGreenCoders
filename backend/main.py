@@ -9,6 +9,11 @@ import os
 import google.generativeai as genai
 from twilio.rest import Client
 from dotenv import load_dotenv
+from model_loader import (
+    PlantDocModelLoader, MaizeModelLoader, RiceModelLoader,
+    MultiModelDetector, PestModelLoader,
+    load_image_from_base64, load_image_from_bytes
+)
 
 # Load environment variables from root .env
 env_path = Path(__file__).parent.parent / '.env'
@@ -56,6 +61,46 @@ except Exception as e:
     print(f"❌ Error loading model: {e}")
     model = None
 
+# Load the three specialized ResNet50 models
+PLANTDOC_MODEL_PATH = Path(__file__).parent.parent / "models" / "plantdoc_resnet50_finetuned.pth"
+MAIZE_MODEL_PATH = Path(__file__).parent.parent / "models" / "maize_resnet50.pth"
+RICE_MODEL_PATH = Path(__file__).parent.parent / "models" / "rice_resnet50.pth"
+
+plantdoc_model = None
+maize_model = None
+rice_model = None
+multi_model_detector = None
+
+try:
+    plantdoc_model = PlantDocModelLoader(str(PLANTDOC_MODEL_PATH))
+except Exception as e:
+    print(f"❌ Error loading PlantDoc model: {e}")
+
+try:
+    maize_model = MaizeModelLoader(str(MAIZE_MODEL_PATH))
+except Exception as e:
+    print(f"❌ Error loading Maize model: {e}")
+
+try:
+    rice_model = RiceModelLoader(str(RICE_MODEL_PATH))
+except Exception as e:
+    print(f"❌ Error loading Rice model: {e}")
+
+# Initialize multi-model detector if at least one model loaded
+if plantdoc_model or maize_model or rice_model:
+    multi_model_detector = MultiModelDetector(plantdoc_model, maize_model, rice_model)
+    print(f"✅ Multi-model detector initialized")
+else:
+    print(f"❌ No models loaded, multi-model detection unavailable")
+
+# Load Legacy Pest Detection Model (scikit-learn) - for backward compatibility
+LEGACY_PEST_MODEL_PATH = Path(__file__).parent.parent / "models" / "resnet50_0.497.pkl"
+try:
+    pest_model = PestModelLoader(str(LEGACY_PEST_MODEL_PATH))
+except Exception as e:
+    print(f"❌ Error loading legacy pest model: {e}")
+    pest_model = None
+
 # --- Data Models ---
 
 class SoilData(BaseModel):
@@ -86,6 +131,17 @@ class RecommendationRequest(BaseModel):
 class SMSRequest(BaseModel):
     to: str
     message: str
+
+class DetectionRequest(BaseModel):
+    image: str  # base64 encoded image
+
+class DetectionResponse(BaseModel):
+    success: bool
+    prediction: str = None
+    confidence: float = None
+    all_predictions: dict = None
+    classes: list = None
+    error: str = None
 
 # --- Endpoints ---
 
@@ -251,6 +307,135 @@ async def analyze_image(
         return {"analysis": response.text}
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Image analysis error: {str(e)}")
+
+# --- Disease & Pest Detection Endpoints ---
+
+@app.post("/detect-disease")
+async def detect_disease(
+    image: UploadFile = File(None),
+    image_base64: str = Form(None)
+):
+    """Detect plant diseases using multi-model system with automatic best-model selection"""
+    if multi_model_detector is None:
+        raise HTTPException(status_code=500, detail="Multi-model detection system not loaded")
+    
+    try:
+        # Load image from either upload or base64
+        if image:
+            content = await image.read()
+            img = load_image_from_bytes(content)
+        elif image_base64:
+            img = load_image_from_base64(image_base64)
+        else:
+            raise HTTPException(status_code=400, detail="No image provided")
+        
+        # Run multi-model prediction
+        result = multi_model_detector.predict(img)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Disease detection error: {str(e)}")
+
+@app.post("/detect-pest")
+async def detect_pest(
+    image: UploadFile = File(None),
+    image_base64: str = Form(None)
+):
+    """Detect pests using the ResNet50-based model"""
+    if pest_model is None:
+        raise HTTPException(status_code=500, detail="Pest detection model not loaded")
+    
+    try:
+        # Load image from either upload or base64
+        if image:
+            content = await image.read()
+            img = load_image_from_bytes(content)
+        elif image_base64:
+            img = load_image_from_base64(image_base64)
+        else:
+            raise HTTPException(status_code=400, detail="No image provided")
+        
+        # Predict
+        result = pest_model.predict(img)
+        return result
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Pest detection error: {str(e)}")
+
+@app.post("/detect-combined")
+async def detect_combined(
+    image: UploadFile = File(None),
+    image_base64: str = Form(None)
+):
+    """Run both multi-model disease detection and legacy pest detection on the same image"""
+    if multi_model_detector is None or pest_model is None:
+        raise HTTPException(status_code=500, detail="Detection models not loaded")
+    
+    try:
+        # Load image from either upload or base64
+        if image:
+            content = await image.read()
+            img = load_image_from_bytes(content)
+        elif image_base64:
+            img = load_image_from_base64(image_base64)
+        else:
+            raise HTTPException(status_code=400, detail="No image provided")
+        
+        # Run both predictions
+        disease_result = multi_model_detector.predict(img)
+        pest_result = pest_model.predict(img)
+        
+        return {
+            "disease": disease_result,
+            "pest": pest_result
+        }
+    except Exception as e:
+        raise HTTPException(status_code=500, detail=f"Combined detection error: {str(e)}")
+
+@app.post("/disease-treatment")
+async def get_disease_treatment(disease_name: str = Form(...)):
+    """Generate treatment recommendations for a detected disease using Gemini AI"""
+    if not GOOGLE_API_KEY:
+        raise HTTPException(status_code=500, detail="Gemini API key not configured. Please add VITE_GEMINI_API_KEY to your .env file.")
+    
+    try:
+        model = genai.GenerativeModel('gemini-pro')
+        
+        prompt = f"""As an agricultural expert, provide comprehensive treatment recommendations for the following plant disease: {disease_name}
+
+Please provide detailed information in the following format:
+
+**Disease Overview:**
+Brief description of the disease and its impact on crops.
+
+**Organic Solutions:**
+- List 3-4 organic/natural treatment methods
+- Include specific products or home remedies
+- Mention application methods and frequency
+
+**Chemical Treatments:**
+- List recommended fungicides/pesticides (if necessary)
+- Include dosage and safety precautions
+- Mention when chemical treatment is absolutely necessary
+
+**Preventive Measures:**
+- List 4-5 preventive practices to avoid future infections
+- Include crop rotation, spacing, and hygiene practices
+
+**Treatment Timeline:**
+- Expected time to see improvement
+- When to reapply treatments
+- Signs of recovery to look for
+
+**Additional Tips:**
+- Any other important information for farmers
+- Environmental conditions to monitor
+
+Keep the advice practical, specific, and easy to understand for farmers."""
+        
+        response = model.generate_content(prompt)
+        return {"success": True, "treatment": response.text, "disease": disease_name}
+    except Exception as e:
+        print(f"Treatment recommendation error: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Treatment recommendation error: {str(e)}")
 
 @app.post("/send-sms")
 async def send_sms(request: SMSRequest):
