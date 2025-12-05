@@ -38,9 +38,9 @@ __pycache__/
 .env.local
 .env.*.local
 
-# Large model files
-*.pth
-*.pkl
+# Large model files - Now handled by Git LFS
+# *.pth - tracked by Git LFS
+# *.pkl - tracked by Git LFS
 *.h5
 *.onnx
 *.pb
