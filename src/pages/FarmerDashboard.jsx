@@ -7,7 +7,7 @@ import { getWeatherData, getMarketPrices } from '../lib/api';
 import { generateFarmingSchedule, speakText, stopSpeaking } from '../lib/aiRecommendations';
 import { getCropRecommendations } from '../lib/cropRecommendation';
 import advisoryEngine from '../lib/advisoryEngine';
-import { Sprout, MapPin, CloudSun, TrendingUp, Sparkles, Volume2, VolumeX, Loader2, Plus, Download, Activity } from 'lucide-react';
+import { Sprout, MapPin, CloudSun, TrendingUp, Sparkles, Volume2, VolumeX, Loader2, Plus, Download, Activity, Satellite } from 'lucide-react';
 import IoTDashboard from '../components/IoTDashboard';
 import WeatherForecast from '../components/WeatherForecast';
 import SoilHistoryGraph from '../components/SoilHistoryGraph';
@@ -373,6 +373,13 @@ export default function FarmerDashboard() {
                             <Volume2 className="w-6 h-6 text-white" />
                         </div>
                         <span className="text-sm font-semibold text-gray-800 text-center">Voice Guide</span>
+                    </Link>
+
+                    <Link to="/satellite-analytics" className="flex flex-col items-center p-4 bg-gradient-to-br from-cyan-50 to-cyan-100 rounded-lg hover:shadow-md transition-all border border-cyan-200">
+                        <div className="w-12 h-12 bg-cyan-600 rounded-full flex items-center justify-center mb-2">
+                            <Satellite className="w-6 h-6 text-white" />
+                        </div>
+                        <span className="text-sm font-semibold text-gray-800 text-center">Satellite View</span>
                     </Link>
                 </div>
             </div>

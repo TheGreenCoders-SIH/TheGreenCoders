@@ -21,6 +21,22 @@ from model_loader import (
     load_image_from_base64, load_image_from_bytes
 )
 
+# Import satellite analytics routers
+# Import routers individually to prevent one failure from blocking all
+try:
+    from routers import farms
+    FARMS_ROUTER_ENABLED = True
+except ImportError as e:
+    print(f"⚠️ WARNING: Farms router layout not available: {e}")
+    FARMS_ROUTER_ENABLED = False
+
+try:
+    from routers import analytics
+    ANALYTICS_ROUTER_ENABLED = True
+except ImportError as e:
+    print(f"⚠️ WARNING: Analytics router not available: {e}")
+    ANALYTICS_ROUTER_ENABLED = False
+
 # Load environment variables from root .env
 env_path = Path(__file__).parent.parent / '.env'
 try:
@@ -140,6 +156,16 @@ def get_pest_model():
             print(f"❌ Error loading legacy pest model: {e}")
             raise HTTPException(status_code=500, detail=f"Failed to load pest model: {str(e)}")
     return _pest_model
+
+# Include satellite analytics routers
+# Include satellite analytics routers
+if FARMS_ROUTER_ENABLED:
+    app.include_router(farms.router)
+    print("✅ Farms router registered")
+
+if ANALYTICS_ROUTER_ENABLED:
+    app.include_router(analytics.router)
+    print("✅ Analytics router registered")
 
 # --- Data Models ---
 

@@ -1,12 +1,21 @@
 // Enhanced Weather and Market API integration
 
 // Get current weather data
+// Get current weather data
 export const getWeatherData = async (city = 'Delhi') => {
     try {
         const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY || 'demo';
-        const response = await fetch(
+        let response = await fetch(
             `https://api.openweathermap.org/data/2.5/weather?q=${city}&appid=${apiKey}&units=metric`
         );
+
+        // Fallback for 404 (City not found)
+        if (response.status === 404 && city !== 'Pune') {
+            console.warn(`Weather not found for ${city}, trying fallback to Pune`);
+            response = await fetch(
+                `https://api.openweathermap.org/data/2.5/weather?q=Pune&appid=${apiKey}&units=metric`
+            );
+        }
 
         if (!response.ok) {
             return getMockWeatherData();
@@ -31,9 +40,16 @@ export const getWeatherData = async (city = 'Delhi') => {
 export const getWeatherForecast = async (city = 'Delhi') => {
     try {
         const apiKey = import.meta.env.VITE_OPENWEATHER_API_KEY || 'demo';
-        const response = await fetch(
+        let response = await fetch(
             `https://api.openweathermap.org/data/2.5/forecast?q=${city}&appid=${apiKey}&units=metric&cnt=56`
         );
+
+        // Fallback for 404
+        if (response.status === 404 && city !== 'Pune') {
+            response = await fetch(
+                `https://api.openweathermap.org/data/2.5/forecast?q=Pune&appid=${apiKey}&units=metric&cnt=56`
+            );
+        }
 
         if (!response.ok) {
             return getMockForecast();

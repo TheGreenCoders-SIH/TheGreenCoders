@@ -1,6 +1,6 @@
 import React from 'react';
 import { Link, useLocation } from 'react-router-dom';
-import { Sprout, LogOut, Shield, User, Activity, Bell, CreditCard } from 'lucide-react';
+import { Sprout, LogOut, Shield, User, Activity, Bell, CreditCard, Satellite } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LanguageSelector from './LanguageSelector';
 
@@ -75,6 +75,20 @@ export default function Header() {
                         >
                             <Activity className="w-4 h-4 mr-1" />
                             Disease Detection
+                        </Link>
+                    )}
+
+                    {/* Satellite Analysis - Farmers only */}
+                    {isFarmer && (
+                        <Link
+                            to="/satellite-analytics"
+                            className={`px-3 py-2 rounded-lg font-medium transition-colors text-sm flex items-center ${isActive('/satellite-analytics')
+                                ? 'bg-green-600 text-white'
+                                : 'text-gray-700 hover:bg-green-50'
+                                }`}
+                        >
+                            <Satellite className="w-4 h-4 mr-1" />
+                            Satellite
                         </Link>
                     )}
 
