@@ -15,11 +15,11 @@ import base64
 
 
 class PlantDocModelLoader:
-    """Loads and manages the PlantDoc ResNet50 model (29 classes)"""
+    """Loads and manages the PlantDoc ResNet50 model (29 classes) - Lazy Loading"""
     
     def __init__(self, model_path: str):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = None
+        self._model = None  # Lazy loading - model not loaded yet
         self.model_path = model_path
         self.model_name = "PlantDoc"
         
@@ -40,21 +40,27 @@ class PlantDocModelLoader:
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
-        
-        self.load_model()
     
-    def load_model(self):
-        """Load the ResNet50 model"""
+    def _load_model(self):
+        """Load the ResNet50 model (called on first use)"""
         try:
-            self.model = models.resnet50(weights=None)
-            self.model.fc = nn.Linear(self.model.fc.in_features, len(self.classes))
-            self.model.load_state_dict(torch.load(self.model_path, map_location=self.device))
-            self.model.to(self.device)
-            self.model.eval()
-            print(f"✅ PlantDoc model loaded successfully with {len(self.classes)} classes")
+            print(f"🔄 Loading {self.model_name} model for the first time...")
+            model = models.resnet50(weights=None)
+            model.fc = nn.Linear(model.fc.in_features, len(self.classes))
+            model.load_state_dict(torch.load(self.model_path, map_location=self.device))
+            model.to(self.device)
+            model.eval()
+            print(f"✅ {self.model_name} model loaded successfully with {len(self.classes)} classes")
+            return model
         except Exception as e:
-            print(f"❌ Error loading PlantDoc model: {e}")
+            print(f"❌ Error loading {self.model_name} model: {e}")
             raise
+    
+    def get_model(self):
+        """Get model instance, loading it if necessary (lazy loading)"""
+        if self._model is None:
+            self._model = self._load_model()
+        return self._model
     
     def preprocess_image(self, image: Image.Image) -> torch.Tensor:
         """Preprocess PIL Image for model input"""
@@ -65,10 +71,11 @@ class PlantDocModelLoader:
     def predict(self, image: Image.Image) -> Dict:
         """Predict disease/pest from image"""
         try:
+            model = self.get_model()  # Lazy load on first prediction
             img_tensor = self.preprocess_image(image)
             
             with torch.no_grad():
-                outputs = self.model(img_tensor)
+                outputs = model(img_tensor)
                 probabilities = torch.nn.functional.softmax(outputs, dim=1)[0]
             
             confidence, predicted_idx = torch.max(probabilities, 0)
@@ -97,11 +104,11 @@ class PlantDocModelLoader:
 
 
 class MaizeModelLoader:
-    """Loads and manages the Maize ResNet50 model (11 classes)"""
+    """Loads and manages the Maize ResNet50 model (11 classes) - Lazy Loading"""
     
     def __init__(self, model_path: str):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = None
+        self._model = None  # Lazy loading - model not loaded yet
         self.model_path = model_path
         self.model_name = "Maize"
         
@@ -118,20 +125,26 @@ class MaizeModelLoader:
             transforms.ToTensor(),
             transforms.Normalize([0.485, 0.456, 0.406], [0.229, 0.224, 0.225])
         ])
-        
-        self.load_model()
     
-    def load_model(self):
-        """Load the full ResNet50 model"""
+    def _load_model(self):
+        """Load the full ResNet50 model (called on first use)"""
         try:
+            print(f"🔄 Loading {self.model_name} model for the first time...")
             # Load full model (saved with torch.save(model, ...))
-            self.model = torch.load(self.model_path, map_location=self.device, weights_only=False)
-            self.model.to(self.device)
-            self.model.eval()
-            print(f"✅ Maize model loaded successfully with {len(self.classes)} classes")
+            model = torch.load(self.model_path, map_location=self.device, weights_only=False)
+            model.to(self.device)
+            model.eval()
+            print(f"✅ {self.model_name} model loaded successfully with {len(self.classes)} classes")
+            return model
         except Exception as e:
-            print(f"❌ Error loading Maize model: {e}")
+            print(f"❌ Error loading {self.model_name} model: {e}")
             raise
+    
+    def get_model(self):
+        """Get model instance, loading it if necessary (lazy loading)"""
+        if self._model is None:
+            self._model = self._load_model()
+        return self._model
     
     def preprocess_image(self, image: Image.Image) -> torch.Tensor:
         """Preprocess PIL Image for model input"""
@@ -142,10 +155,11 @@ class MaizeModelLoader:
     def predict(self, image: Image.Image) -> Dict:
         """Predict maize disease/pest from image"""
         try:
+            model = self.get_model()  # Lazy load on first prediction
             img_tensor = self.preprocess_image(image)
             
             with torch.no_grad():
-                outputs = self.model(img_tensor)
+                outputs = model(img_tensor)
                 probabilities = torch.nn.functional.softmax(outputs, dim=1)[0]
             
             confidence, predicted_idx = torch.max(probabilities, 0)
@@ -174,11 +188,11 @@ class MaizeModelLoader:
 
 
 class RiceModelLoader:
-    """Loads and manages the Rice ResNet50 model (10 classes)"""
+    """Loads and manages the Rice ResNet50 model (10 classes) - Lazy Loading"""
     
     def __init__(self, model_path: str):
         self.device = torch.device("cuda" if torch.cuda.is_available() else "cpu")
-        self.model = None
+        self._model = None  # Lazy loading - model not loaded yet
         self.model_path = model_path
         self.model_name = "Rice"
         
@@ -201,21 +215,27 @@ class RiceModelLoader:
             transforms.Resize((256, 256)),
             transforms.ToTensor(),
         ])
-        
-        self.load_model()
     
-    def load_model(self):
-        """Load the ResNet50 model"""
+    def _load_model(self):
+        """Load the ResNet50 model (called on first use)"""
         try:
-            self.model = models.resnet50(weights=None)
-            self.model.fc = nn.Linear(self.model.fc.in_features, len(self.classes))
-            self.model.load_state_dict(torch.load(self.model_path, map_location=self.device))
-            self.model.to(self.device)
-            self.model.eval()
-            print(f"✅ Rice model loaded successfully with {len(self.classes)} classes")
+            print(f"🔄 Loading {self.model_name} model for the first time...")
+            model = models.resnet50(weights=None)
+            model.fc = nn.Linear(model.fc.in_features, len(self.classes))
+            model.load_state_dict(torch.load(self.model_path, map_location=self.device))
+            model.to(self.device)
+            model.eval()
+            print(f"✅ {self.model_name} model loaded successfully with {len(self.classes)} classes")
+            return model
         except Exception as e:
-            print(f"❌ Error loading Rice model: {e}")
+            print(f"❌ Error loading {self.model_name} model: {e}")
             raise
+    
+    def get_model(self):
+        """Get model instance, loading it if necessary (lazy loading)"""
+        if self._model is None:
+            self._model = self._load_model()
+        return self._model
     
     def preprocess_image(self, image: Image.Image) -> torch.Tensor:
         """Preprocess PIL Image for model input"""
@@ -226,10 +246,11 @@ class RiceModelLoader:
     def predict(self, image: Image.Image) -> Dict:
         """Predict rice disease/pest from image"""
         try:
+            model = self.get_model()  # Lazy load on first prediction
             img_tensor = self.preprocess_image(image)
             
             with torch.no_grad():
-                outputs = self.model(img_tensor)
+                outputs = model(img_tensor)
                 probabilities = torch.nn.functional.softmax(outputs, dim=1)[0]
             
             confidence, predicted_idx = torch.max(probabilities, 0)
@@ -313,25 +334,34 @@ class MultiModelDetector:
 
 # Legacy class for backward compatibility
 class PestModelLoader:
-    """Legacy pest detection model (scikit-learn)"""
+    """Legacy pest detection model (scikit-learn) - Lazy Loading"""
     
     def __init__(self, model_path: str):
-        self.model = None
+        self._model = None  # Lazy loading - model not loaded yet
         self.model_path = model_path
-        self.load_model()
     
-    def load_model(self):
-        """Load the scikit-learn model"""
+    def _load_model(self):
+        """Load the scikit-learn model (called on first use)"""
         try:
-            self.model = joblib.load(self.model_path)
+            print(f"🔄 Loading Legacy Pest model for the first time...")
+            model = joblib.load(self.model_path)
             print(f"✅ Legacy Pest model loaded successfully")
+            return model
         except Exception as e:
             print(f"❌ Error loading legacy pest model: {e}")
             raise
     
+    def get_model(self):
+        """Get model instance, loading it if necessary (lazy loading)"""
+        if self._model is None:
+            self._model = self._load_model()
+        return self._model
+    
     def predict(self, image: Image.Image) -> Dict:
         """Predict pest from image"""
         try:
+            model = self.get_model()  # Lazy load on first prediction
+            
             image = image.convert('RGB')
             image = image.resize((224, 224))
             
@@ -339,14 +369,14 @@ class PestModelLoader:
             img_flattened = img_array.flatten().reshape(1, -1)
             img_normalized = img_flattened / 255.0
             
-            prediction = self.model.predict(img_normalized)[0]
+            prediction = model.predict(img_normalized)[0]
             
             confidence = 0.85
             all_predictions = {}
             
-            if hasattr(self.model, 'predict_proba'):
-                probabilities = self.model.predict_proba(img_normalized)[0]
-                classes = self.model.classes_
+            if hasattr(model, 'predict_proba'):
+                probabilities = model.predict_proba(img_normalized)[0]
+                classes = model.classes_
                 pred_idx = np.where(classes == prediction)[0][0]
                 confidence = float(probabilities[pred_idx])
                 

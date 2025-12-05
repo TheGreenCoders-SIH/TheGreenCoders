@@ -52,7 +52,7 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
-# Load the ML model
+# Load the ML model (crop recommendation - keep eager loading for this small model)
 MODEL_PATH = Path(__file__).parent.parent / "models" / "crop_model.pkl"
 try:
     model = joblib.load(MODEL_PATH)
@@ -61,45 +61,79 @@ except Exception as e:
     print(f"❌ Error loading model: {e}")
     model = None
 
-# Load the three specialized ResNet50 models
+# Model paths for lazy loading
 PLANTDOC_MODEL_PATH = Path(__file__).parent.parent / "models" / "plantdoc_resnet50_finetuned.pth"
 MAIZE_MODEL_PATH = Path(__file__).parent.parent / "models" / "maize_resnet50.pth"
 RICE_MODEL_PATH = Path(__file__).parent.parent / "models" / "rice_resnet50.pth"
-
-plantdoc_model = None
-maize_model = None
-rice_model = None
-multi_model_detector = None
-
-try:
-    plantdoc_model = PlantDocModelLoader(str(PLANTDOC_MODEL_PATH))
-except Exception as e:
-    print(f"❌ Error loading PlantDoc model: {e}")
-
-try:
-    maize_model = MaizeModelLoader(str(MAIZE_MODEL_PATH))
-except Exception as e:
-    print(f"❌ Error loading Maize model: {e}")
-
-try:
-    rice_model = RiceModelLoader(str(RICE_MODEL_PATH))
-except Exception as e:
-    print(f"❌ Error loading Rice model: {e}")
-
-# Initialize multi-model detector if at least one model loaded
-if plantdoc_model or maize_model or rice_model:
-    multi_model_detector = MultiModelDetector(plantdoc_model, maize_model, rice_model)
-    print(f"✅ Multi-model detector initialized")
-else:
-    print(f"❌ No models loaded, multi-model detection unavailable")
-
-# Load Legacy Pest Detection Model (scikit-learn) - for backward compatibility
 LEGACY_PEST_MODEL_PATH = Path(__file__).parent.parent / "models" / "resnet50_0.497.pkl"
-try:
-    pest_model = PestModelLoader(str(LEGACY_PEST_MODEL_PATH))
-except Exception as e:
-    print(f"❌ Error loading legacy pest model: {e}")
-    pest_model = None
+
+# Global variables for lazy-loaded models (initialized to None)
+_plantdoc_model = None
+_maize_model = None
+_rice_model = None
+_multi_model_detector = None
+_pest_model = None
+
+# Lazy loading getter functions
+def get_plantdoc_model():
+    """Lazy load PlantDoc model on first request"""
+    global _plantdoc_model
+    if _plantdoc_model is None:
+        try:
+            _plantdoc_model = PlantDocModelLoader(str(PLANTDOC_MODEL_PATH))
+        except Exception as e:
+            print(f"❌ Error loading PlantDoc model: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to load PlantDoc model: {str(e)}")
+    return _plantdoc_model
+
+def get_maize_model():
+    """Lazy load Maize model on first request"""
+    global _maize_model
+    if _maize_model is None:
+        try:
+            _maize_model = MaizeModelLoader(str(MAIZE_MODEL_PATH))
+        except Exception as e:
+            print(f"❌ Error loading Maize model: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to load Maize model: {str(e)}")
+    return _maize_model
+
+def get_rice_model():
+    """Lazy load Rice model on first request"""
+    global _rice_model
+    if _rice_model is None:
+        try:
+            _rice_model = RiceModelLoader(str(RICE_MODEL_PATH))
+        except Exception as e:
+            print(f"❌ Error loading Rice model: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to load Rice model: {str(e)}")
+    return _rice_model
+
+def get_multi_model_detector():
+    """Lazy load multi-model detector on first request"""
+    global _multi_model_detector
+    if _multi_model_detector is None:
+        try:
+            # Load individual models
+            plantdoc = get_plantdoc_model()
+            maize = get_maize_model()
+            rice = get_rice_model()
+            _multi_model_detector = MultiModelDetector(plantdoc, maize, rice)
+            print(f"✅ Multi-model detector initialized")
+        except Exception as e:
+            print(f"❌ Error initializing multi-model detector: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to initialize multi-model detector: {str(e)}")
+    return _multi_model_detector
+
+def get_pest_model():
+    """Lazy load legacy pest model on first request"""
+    global _pest_model
+    if _pest_model is None:
+        try:
+            _pest_model = PestModelLoader(str(LEGACY_PEST_MODEL_PATH))
+        except Exception as e:
+            print(f"❌ Error loading legacy pest model: {e}")
+            raise HTTPException(status_code=500, detail=f"Failed to load pest model: {str(e)}")
+    return _pest_model
 
 # --- Data Models ---
 
@@ -316,9 +350,6 @@ async def detect_disease(
     image_base64: str = Form(None)
 ):
     """Detect plant diseases using multi-model system with automatic best-model selection"""
-    if multi_model_detector is None:
-        raise HTTPException(status_code=500, detail="Multi-model detection system not loaded")
-    
     try:
         # Load image from either upload or base64
         if image:
@@ -329,8 +360,11 @@ async def detect_disease(
         else:
             raise HTTPException(status_code=400, detail="No image provided")
         
+        # Get multi-model detector (lazy load on first call)
+        detector = get_multi_model_detector()
+        
         # Run multi-model prediction
-        result = multi_model_detector.predict(img)
+        result = detector.predict(img)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Disease detection error: {str(e)}")
@@ -341,9 +375,6 @@ async def detect_pest(
     image_base64: str = Form(None)
 ):
     """Detect pests using the ResNet50-based model"""
-    if pest_model is None:
-        raise HTTPException(status_code=500, detail="Pest detection model not loaded")
-    
     try:
         # Load image from either upload or base64
         if image:
@@ -354,8 +385,11 @@ async def detect_pest(
         else:
             raise HTTPException(status_code=400, detail="No image provided")
         
+        # Get pest model (lazy load on first call)
+        pest_detector = get_pest_model()
+        
         # Predict
-        result = pest_model.predict(img)
+        result = pest_detector.predict(img)
         return result
     except Exception as e:
         raise HTTPException(status_code=500, detail=f"Pest detection error: {str(e)}")
@@ -366,9 +400,6 @@ async def detect_combined(
     image_base64: str = Form(None)
 ):
     """Run both multi-model disease detection and legacy pest detection on the same image"""
-    if multi_model_detector is None or pest_model is None:
-        raise HTTPException(status_code=500, detail="Detection models not loaded")
-    
     try:
         # Load image from either upload or base64
         if image:
@@ -379,9 +410,13 @@ async def detect_combined(
         else:
             raise HTTPException(status_code=400, detail="No image provided")
         
+        # Get models (lazy load on first call)
+        detector = get_multi_model_detector()
+        pest_detector = get_pest_model()
+        
         # Run both predictions
-        disease_result = multi_model_detector.predict(img)
-        pest_result = pest_model.predict(img)
+        disease_result = detector.predict(img)
+        pest_result = pest_detector.predict(img)
         
         return {
             "disease": disease_result,
