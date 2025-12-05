@@ -1,10 +1,16 @@
+import sys
+from pathlib import Path
+
+# Add backend directory to Python path for model_loader import
+backend_dir = Path(__file__).parent
+sys.path.insert(0, str(backend_dir))
+
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
 import numpy as np
 import pandas as pd
-from pathlib import Path
 import os
 import google.generativeai as genai
 from twilio.rest import Client
