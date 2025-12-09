@@ -1,0 +1,53 @@
+/* Tutorial Spotlight Effect */
+.tutorial-spotlight {
+    width: 100%;
+    height: 100%;
+    border-radius: 1.5rem;
+    box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.6),
+                0 0 0 8px rgba(34, 197, 94, 0.4),
+                0 0 40px 20px rgba(34, 197, 94, 0.3);
+    animation: pulse-spotlight 2s ease-in-out infinite;
+}
+
+@keyframes pulse-spotlight {
+    0%, 100% {
+        box-shadow: 0 0 0 4px rgba(34, 197, 94, 0.6),
+                    0 0 0 8px rgba(34, 197, 94, 0.4),
+                    0 0 40px 20px rgba(34, 197, 94, 0.3);
+    }
+    50% {
+        box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.8),
+                    0 0 0 12px rgba(34, 197, 94, 0.5),
+                    0 0 60px 30px rgba(34, 197, 94, 0.4);
+    }
+}
+
+/* Animated Hand Pointer */
+.hand-pointer {
+    font-size: 3rem;
+    filter: drop-shadow(0 4px 6px rgba(0, 0, 0, 0.3));
+    animation: point-bounce 1.5s ease-in-out infinite;
+    transform-origin: center;
+}
+
+@keyframes point-bounce {
+    0%, 100% {
+        transform: translateX(0) scale(1);
+    }
+    50% {
+        transform: translateX(-10px) scale(1.1);
+    }
+}
+
+/* Responsive adjustments */
+@media (max-width: 768px) {
+    .hand-pointer {
+        font-size: 2.5rem;
+    }
+}
+
+@media (max-width: 640px) {
+    .hand-pointer {
+        font-size: 2rem;
+    }
+}

@@ -15,6 +15,7 @@ import html2canvas from 'html2canvas';
 import LanguageSelector from '../components/LanguageSelector';
 import { T } from '../hooks/useTranslation';
 import ErrorBoundary from '../components/ErrorBoundary';
+import Tutorial from '../components/Tutorial';
 
 export default function FarmerDashboard() {
     const { currentUser, userProfile } = useAuth();
@@ -29,6 +30,7 @@ export default function FarmerDashboard() {
     const [fertilizerAdvisory, setFertilizerAdvisory] = useState(null);
     const [irrigationSchedule, setIrrigationSchedule] = useState(null);
     const cardRef = useRef(null);
+    const [showTutorial, setShowTutorial] = useState(false);
 
     // Get Greeting based on time
     const getGreeting = () => {
@@ -103,11 +105,27 @@ export default function FarmerDashboard() {
                 }
             }
             setLoading(false);
+
+            // Check if tutorial should be shown
+            checkTutorialStatus();
         } catch (error) {
             console.error('Error loading farmer data:', error);
             // Ensure we turn off loading state even on error
             setLoading(false);
         }
+    };
+
+    const checkTutorialStatus = () => {
+        const tutorialCompleted = localStorage.getItem('tutorial_completed');
+        // Show tutorial if user has no card and hasn't completed tutorial
+        if (!card && !tutorialCompleted) {
+            setShowTutorial(true);
+        }
+    };
+
+    const handleTutorialComplete = () => {
+        localStorage.setItem('tutorial_completed', 'true');
+        setShowTutorial(false);
     };
 
     const calculateSoilScore = (data) => {
@@ -202,6 +220,7 @@ export default function FarmerDashboard() {
                             color="bg-blue-500"
                             title="My Soil Card"
                             delay={0.1}
+                            id="soil-card-button"
                         />
                         <QuickActionCard
                             to="/voice-advisory"
@@ -402,13 +421,24 @@ export default function FarmerDashboard() {
                     )}
 
                 </div>
+
+                {/* Tutorial Overlay */}
+                {showTutorial && (
+                    <Tutorial
+                        targetId="soil-card-button"
+                        onComplete={handleTutorialComplete}
+                        message="Start your farming journey by creating your first Soil Health Card! Click here to analyze your soil and get personalized recommendations."
+                        step={1}
+                        totalSteps={1}
+                    />
+                )}
             </div>
         </ErrorBoundary>
     );
 }
 
 // Subcomponents
-const QuickActionCard = ({ to, icon: Icon, color, title, delay }) => {
+const QuickActionCard = ({ to, icon: Icon, color, title, delay, id }) => {
     // Map color to explicit Tailwind classes to ensure they are purged correctly
     const colorMap = {
         'bg-blue-500': 'group-hover:border-blue-200',
@@ -420,7 +450,7 @@ const QuickActionCard = ({ to, icon: Icon, color, title, delay }) => {
     };
 
     return (
-        <Link to={to} className="group relative">
+        <Link to={to} className="group relative" id={id}>
             <motion.div
                 initial={{ opacity: 0, y: 20 }}
                 animate={{ opacity: 1, y: 0 }}
