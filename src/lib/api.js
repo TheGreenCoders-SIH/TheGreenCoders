@@ -1,4 +1,33 @@
 // Enhanced Weather and Market API integration
+const API_URL = import.meta.env.VITE_ML_API_URL || 'http://localhost:8000';
+
+
+// Send SMS via Backend
+export const sendSMS = async (phoneNumber, message) => {
+    try {
+        const response = await fetch(`${API_URL}/send-sms`, {
+            method: 'POST',
+            headers: {
+                'Content-Type': 'application/json',
+            },
+            body: JSON.stringify({
+                to: phoneNumber,
+                message: message
+            }),
+        });
+
+        if (!response.ok) {
+            const errorData = await response.json().catch(() => ({ detail: 'Unknown error' }));
+            throw new Error(errorData.detail || 'Failed to send SMS');
+        }
+
+        const data = await response.json();
+        return { success: true, sid: data.sid };
+    } catch (error) {
+        console.error('SMS Error:', error);
+        return { success: false, error: error.message };
+    }
+};
 
 // Get current weather data
 // Get current weather data

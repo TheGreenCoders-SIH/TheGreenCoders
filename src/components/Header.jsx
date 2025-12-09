@@ -3,6 +3,7 @@ import { Link, useLocation } from 'react-router-dom';
 import { Sprout, LogOut, Shield, User, Activity, Bell, CreditCard, Satellite } from 'lucide-react';
 import { useAuth } from '../contexts/AuthContext';
 import LanguageSelector from './LanguageSelector';
+import { T } from '../hooks/useTranslation';
 
 export default function Header() {
     const location = useLocation();
@@ -47,7 +48,7 @@ export default function Header() {
                             : 'text-gray-700 hover:bg-green-50'
                             }`}
                     >
-                        Dashboard
+                        <T>Dashboard</T>
                     </Link>
 
                     {/* My Card - Farmers only */}
@@ -60,7 +61,7 @@ export default function Header() {
                                 }`}
                         >
                             <CreditCard className="w-4 h-4 mr-1" />
-                            My Card
+                            <T>My Card</T>
                         </Link>
                     )}
 
@@ -74,7 +75,7 @@ export default function Header() {
                                 }`}
                         >
                             <Activity className="w-4 h-4 mr-1" />
-                            Disease Detection
+                            <T>Disease Detection</T>
                         </Link>
                     )}
 
@@ -88,7 +89,7 @@ export default function Header() {
                                 }`}
                         >
                             <Satellite className="w-4 h-4 mr-1" />
-                            Satellite
+                            <T>Satellite</T>
                         </Link>
                     )}
 
@@ -100,7 +101,7 @@ export default function Header() {
                             : 'text-gray-700 hover:bg-green-50'
                             }`}
                     >
-                        Market
+                        <T>Market</T>
                     </Link>
 
                     {/* Notifications - Farmers only */}
@@ -126,7 +127,7 @@ export default function Header() {
                         className="px-3 py-2 rounded-lg font-medium text-gray-700 hover:bg-red-50 hover:text-red-600 transition-colors flex items-center text-sm"
                     >
                         <LogOut className="w-4 h-4 mr-1" />
-                        Logout
+                        <T>Logout</T>
                     </button>
                 </nav>
             </div>

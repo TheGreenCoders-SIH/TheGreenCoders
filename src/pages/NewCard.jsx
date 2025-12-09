@@ -1,7 +1,7 @@
 import React, { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { motion } from 'framer-motion';
-import { Loader2, CheckCircle, Sprout, Sparkles, Wifi } from 'lucide-react';
+import { Loader2, CheckCircle, Sprout, Sparkles, Wifi, ShieldCheck, User, Phone } from 'lucide-react';
 import { generateRecommendations } from '../lib/gemini';
 import { generateFarmingSchedule } from '../lib/aiRecommendations';
 import { getWeatherData } from '../lib/api';
@@ -44,33 +44,41 @@ export default function NewCard() {
     // Pre-fill data from profile
     useEffect(() => {
         const fetchProfileData = async () => {
-            if (userProfile?.farmerId) {
-                try {
-                    const farmerRef = doc(db, 'farmers', userProfile.farmerId);
-                    const farmerSnap = await getDoc(farmerRef);
+            if (userProfile) {
+                // Auto-fill core details from Auth Profile
+                setFormData(prev => ({
+                    ...prev,
+                    farmerName: userProfile.name || prev.farmerName,
+                }));
 
-                    if (farmerSnap.exists()) {
-                        const data = farmerSnap.data().card;
-                        if (data) {
-                            setFormData(prev => ({
-                                ...prev,
-                                farmerName: data.farmerName || '',
-                                village: data.village || '',
-                                state: data.state || '',
-                                farmSize: data.farmSize || '',
-                                ph: data.ph || '',
-                                organicCarbon: data.organicCarbon || '1.0',
-                                nitrogen: data.N || data.npk?.split(':')[0] || '',
-                                phosphorus: data.P || data.npk?.split(':')[1] || '',
-                                potassium: data.K || data.npk?.split(':')[2] || '',
-                                temperature: data.temperature || '',
-                                humidity: data.humidity || '',
-                                rainfall: data.rainfall || ''
-                            }));
+                if (userProfile.farmerId) {
+                    try {
+                        const farmerRef = doc(db, 'farmers', userProfile.farmerId);
+                        const farmerSnap = await getDoc(farmerRef);
+
+                        if (farmerSnap.exists()) {
+                            const data = farmerSnap.data().card;
+                            if (data) {
+                                setFormData(prev => ({
+                                    ...prev,
+                                    farmerName: data.farmerName || userProfile.name || '',
+                                    village: data.village || '',
+                                    state: data.state || '',
+                                    farmSize: data.farmSize || '',
+                                    ph: data.ph || '',
+                                    organicCarbon: data.organicCarbon || '1.0',
+                                    nitrogen: data.N || data.npk?.split(':')[0] || '',
+                                    phosphorus: data.P || data.npk?.split(':')[1] || '',
+                                    potassium: data.K || data.npk?.split(':')[2] || '',
+                                    temperature: data.temperature || '',
+                                    humidity: data.humidity || '',
+                                    rainfall: data.rainfall || ''
+                                }));
+                            }
                         }
+                    } catch (error) {
+                        console.error("Error fetching profile data:", error);
                     }
-                } catch (error) {
-                    console.error("Error fetching profile data:", error);
                 }
             }
         };
@@ -109,6 +117,7 @@ export default function NewCard() {
 
         const soilData = {
             farmerName: formData.farmerName,
+            phone: userProfile.phoneNumber, // Include phone from profile
             village: formData.village,
             state: formData.state,
             farmSize: parseFloat(formData.farmSize),
@@ -244,7 +253,7 @@ export default function NewCard() {
                             Register New Farmer
                         </h2>
                         <p className="text-sm text-gray-500">
-                            Enter farmer details and soil conditions to generate visual smart card
+                            Enter soil conditions to generate visual smart card. Personal details are pre-filled.
                         </p>
                     </div>
                     <button
@@ -265,22 +274,21 @@ export default function NewCard() {
                 <form onSubmit={handleSubmit} className="space-y-6">
                     {/* Personal Information */}
                     <div>
-                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Personal Information</h3>
+                        <h3 className="text-lg font-semibold text-gray-800 mb-4">Personal Information <span className="text-xs font-normal text-green-600 bg-green-50 px-2 py-1 rounded-full ml-2">Verified from Profile</span></h3>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-                            <div>
-                                <label className="block text-sm font-medium text-green-700 mb-1">
-                                    Farmer Name <span className="text-red-500">*</span>
+                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-1">
+                                    <User className="w-3 h-3" /> Farmer Name
                                 </label>
-                                <input
-                                    type="text"
-                                    name="farmerName"
-                                    value={formData.farmerName}
-                                    onChange={handleInputChange}
-                                    required
-                                    className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                                    placeholder="Test Farmer"
-                                />
+                                <div className="text-gray-900 font-bold">{formData.farmerName || userProfile?.name}</div>
                             </div>
+                            <div className="bg-gray-50 p-3 rounded-lg border border-gray-200">
+                                <label className="block text-xs font-bold text-gray-500 uppercase mb-1 flex items-center gap-1">
+                                    <Phone className="w-3 h-3" /> Mobile Number
+                                </label>
+                                <div className="text-gray-900 font-bold tracking-wider">{userProfile?.phoneNumber || 'Not Linked'}</div>
+                            </div>
+
                             <div>
                                 <label className="block text-sm font-medium text-green-700 mb-1">
                                     Village <span className="text-red-500">*</span>
@@ -292,7 +300,7 @@ export default function NewCard() {
                                     onChange={handleInputChange}
                                     required
                                     className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:ring-2 focus:ring-green-500 focus:border-green-500 outline-none transition-all"
-                                    placeholder="Test Village"
+                                    placeholder="Enter your village name"
                                 />
                             </div>
                             <div>

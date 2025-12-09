@@ -22,25 +22,52 @@ export const generateQRData = (farmerData) => {
 // Parse QR code data
 export const parseQRData = (qrString) => {
     try {
-        const data = JSON.parse(qrString);
-
-        if (data.type !== 'farmer_login') {
-            throw new Error('Invalid QR code type');
+        // Try to parse as JSON first (legacy/rich format)
+        let data;
+        let isJson = false;
+        try {
+            data = JSON.parse(qrString);
+            isJson = true;
+        } catch (e) {
+            // Not JSON, treat as raw string
         }
 
-        // Verify timestamp (QR code valid for 30 days)
-        const qrDate = new Date(data.timestamp);
-        const daysSinceCreation = (Date.now() - qrDate.getTime()) / (1000 * 60 * 60 * 24);
+        if (isJson) {
+            if (data.type === 'farmer_login') {
+                // Verify timestamp (QR code valid for 30 days)
+                const qrDate = new Date(data.timestamp);
+                const daysSinceCreation = (Date.now() - qrDate.getTime()) / (1000 * 60 * 60 * 24);
 
-        if (daysSinceCreation > 30) {
-            throw new Error('QR code expired. Please generate a new card.');
+                if (daysSinceCreation > 30) {
+                    throw new Error('QR code expired. Please generate a new card.');
+                }
+
+                return {
+                    farmerId: data.farmerId,
+                    email: data.email,
+                    valid: true
+                };
+            } else if (data.farmerId) {
+                // Simple JSON with farmerId
+                return {
+                    farmerId: data.farmerId,
+                    email: data.email, // Optional
+                    valid: true
+                };
+            }
         }
 
-        return {
-            farmerId: data.farmerId,
-            email: data.email,
-            valid: true
-        };
+        // Check if raw string matches FarmerID format
+        // FC-YYYY-XXXXXX
+        const farmerIdPattern = /^FC-\d{4}-\d{6}$/;
+        if (farmerIdPattern.test(qrString)) {
+            return {
+                farmerId: qrString,
+                valid: true
+            };
+        }
+
+        throw new Error('Invalid QR code format');
     } catch (error) {
         console.error('QR parse error:', error);
         return {
@@ -48,7 +75,8 @@ export const parseQRData = (qrString) => {
             error: error.message
         };
     }
-};
+}
+
 
 // Authenticate farmer using QR code data
 export const authenticateWithQR = async (qrData) => {

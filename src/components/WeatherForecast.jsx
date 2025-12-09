@@ -82,13 +82,29 @@ export default function WeatherForecast({ location = 'Delhi' }) {
         );
     }
 
+    const getTimeBasedBackground = () => {
+        const hour = new Date().getHours();
+        if (hour >= 5 && hour < 11) {
+            return 'bg-gradient-to-br from-orange-100 to-blue-100'; // Morning
+        } else if (hour >= 11 && hour < 16) {
+            return 'bg-gradient-to-br from-blue-100 to-yellow-100'; // Day (Sunny)
+        } else if (hour >= 16 && hour < 19) {
+            return 'bg-gradient-to-br from-orange-200 to-purple-200'; // Sunset
+        } else {
+            return 'bg-gradient-to-br from-indigo-900 to-purple-900 text-white'; // Night
+        }
+    };
+
+    const bgClass = getTimeBasedBackground();
+    const isNight = new Date().getHours() >= 19 || new Date().getHours() < 5;
+
     return (
         <div className="space-y-6">
             {/* Extreme Weather Alerts */}
             {extremeAlerts.length > 0 && (
                 <div className="space-y-2">
                     {extremeAlerts.slice(0, 2).map((alert, idx) => (
-                        <div key={idx} className={`border-l-4 p-4 rounded-lg ${getSeverityColor(alert.severity)}`}>
+                        <div key={idx} className={`border-l-4 p-4 rounded-lg bg-white ${getSeverityColor(alert.severity)}`}>
                             <div className="flex items-start">
                                 <AlertCircle className="w-5 h-5 mr-2 mt-0.5" />
                                 <div className="flex-1">
@@ -103,7 +119,7 @@ export default function WeatherForecast({ location = 'Delhi' }) {
 
             {/* Rain Prediction & Irrigation Adjustment */}
             {rainPrediction && (
-                <div className="bg-blue-50 border-l-4 border-blue-500 p-4 rounded-lg">
+                <div className="bg-white border-l-4 border-blue-500 p-4 rounded-lg shadow-sm">
                     <div className="flex items-start">
                         <Droplets className="w-5 h-5 text-blue-600 mr-2 mt-0.5" />
                         <div className="flex-1">
@@ -119,17 +135,17 @@ export default function WeatherForecast({ location = 'Delhi' }) {
             )}
 
             {/* 7-Day Forecast */}
-            <div className="bg-white p-6 rounded-xl shadow-sm border border-gray-100">
-                <h3 className="text-lg font-bold text-gray-800 mb-4">7-Day Weather Forecast</h3>
+            <div className={`${bgClass} p-6 rounded-xl shadow-lg border border-white/20 transition-all duration-1000`}>
+                <h3 className={`text-lg font-bold mb-4 ${isNight ? 'text-white' : 'text-gray-800'}`}>7-Day Weather Forecast</h3>
 
                 <div className="grid grid-cols-2 md:grid-cols-4 lg:grid-cols-7 gap-3">
                     {forecast.map((day, idx) => (
                         <motion.div
                             key={idx}
                             whileHover={{ y: -5 }}
-                            className="bg-gray-50 p-4 rounded-lg text-center border border-gray-200 hover:shadow-md transition-all"
+                            className={`${isNight ? 'bg-white/10 border-white/20 text-white' : 'bg-white/60 border-white/40 text-gray-800'} backdrop-blur-sm p-4 rounded-lg text-center border hover:shadow-lg transition-all`}
                         >
-                            <div className="font-semibold text-sm text-gray-700 mb-2">
+                            <div className={`font-semibold text-sm mb-2 ${isNight ? 'text-gray-200' : 'text-gray-700'}`}>
                                 {formatDate(day.date)}
                             </div>
 
@@ -137,25 +153,25 @@ export default function WeatherForecast({ location = 'Delhi' }) {
                                 {getWeatherIcon(day.condition)}
                             </div>
 
-                            <div className="text-xs text-gray-600 mb-2 capitalize">
+                            <div className={`text-xs mb-2 capitalize ${isNight ? 'text-gray-300' : 'text-gray-600'}`}>
                                 {day.condition}
                             </div>
 
                             <div className="flex justify-center items-center space-x-2 mb-2">
-                                <span className="text-lg font-bold text-gray-900">{day.tempMax}°</span>
-                                <span className="text-sm text-gray-500">{day.tempMin}°</span>
+                                <span className={`text-lg font-bold ${isNight ? 'text-white' : 'text-gray-900'}`}>{day.tempMax}°</span>
+                                <span className={`text-sm ${isNight ? 'text-gray-400' : 'text-gray-500'}`}>{day.tempMin}°</span>
                             </div>
 
                             {/* Rain Probability */}
                             {day.rainProbability > 20 && (
-                                <div className="flex items-center justify-center text-xs text-blue-600 mb-1">
+                                <div className={`flex items-center justify-center text-xs mb-1 ${isNight ? 'text-blue-300' : 'text-blue-600'}`}>
                                     <Droplets className="w-3 h-3 mr-1" />
                                     {day.rainProbability}%
                                 </div>
                             )}
 
                             {/* Humidity */}
-                            <div className="text-xs text-gray-500">
+                            <div className={`text-xs ${isNight ? 'text-gray-400' : 'text-gray-500'}`}>
                                 <Wind className="w-3 h-3 inline mr-1" />
                                 {day.humidity}%
                             </div>

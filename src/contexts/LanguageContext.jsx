@@ -1,85 +1,39 @@
-// Language Context for Multi-language Support
 import React, { createContext, useContext, useState, useEffect } from 'react';
-import translationService, { SUPPORTED_LANGUAGES } from '../lib/translation';
+import { translationService } from '../lib/translation';
+import { LANGUAGES } from '../lib/staticTranslations';
 
 const LanguageContext = createContext();
 
 export function useLanguage() {
-    const context = useContext(LanguageContext);
-    if (!context) {
-        throw new Error('useLanguage must be used within a LanguageProvider');
-    }
-    return context;
+    return useContext(LanguageContext);
 }
 
 export function LanguageProvider({ children }) {
-    const [currentLanguage, setCurrentLanguage] = useState('en');
-    const [isTranslating, setIsTranslating] = useState(false);
+    // 1. Initialize from localStorage or default to 'en'
+    const [currentLanguage, setCurrentLanguage] = useState(() => {
+        return localStorage.getItem('app_language') || 'en';
+    });
 
-    // Load saved language preference
-    useEffect(() => {
-        const saved = localStorage.getItem('preferred_language');
-        if (saved && SUPPORTED_LANGUAGES[saved]) {
-            setCurrentLanguage(saved);
-        }
-    }, []);
-
-    // Save language preference
+    // 2. Persist change
     const changeLanguage = (langCode) => {
-        if (SUPPORTED_LANGUAGES[langCode]) {
+        if (LANGUAGES[langCode]) {
             setCurrentLanguage(langCode);
-            localStorage.setItem('preferred_language', langCode);
+            localStorage.setItem('app_language', langCode);
+            // Optional: Reload page if needed to flush state, but context should handle it reactively
         }
     };
 
-    // Translate text
-    const translate = async (text, targetLang = null) => {
-        const lang = targetLang || currentLanguage;
-
-        if (lang === 'en' || !text) {
-            return text;
-        }
-
-        setIsTranslating(true);
-        try {
-            const translated = await translationService.translate(text, lang, 'en');
-            return translated;
-        } catch (error) {
-            console.error('Translation error:', error);
-            return text;
-        } finally {
-            setIsTranslating(false);
-        }
-    };
-
-    // Translate batch
-    const translateBatch = async (texts, targetLang = null) => {
-        const lang = targetLang || currentLanguage;
-
-        if (lang === 'en' || !texts || texts.length === 0) {
-            return texts;
-        }
-
-        setIsTranslating(true);
-        try {
-            const translated = await translationService.translateBatch(texts, lang, 'en');
-            return translated;
-        } catch (error) {
-            console.error('Batch translation error:', error);
-            return texts;
-        } finally {
-            setIsTranslating(false);
-        }
+    // 3. Helper to translate single text (async)
+    // Note: This is for imperative usage. For UI, use the useTranslation hook.
+    const translateText = async (text) => {
+        return await translationService.translate(text, currentLanguage);
     };
 
     const value = {
         currentLanguage,
         changeLanguage,
-        translate,
-        translateBatch,
-        isTranslating,
-        supportedLanguages: SUPPORTED_LANGUAGES,
-        isRTL: ['ar', 'ur'].includes(currentLanguage) // For future RTL support
+        translateText,
+        languages: LANGUAGES
     };
 
     return (

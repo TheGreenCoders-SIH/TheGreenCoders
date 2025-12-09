@@ -9,15 +9,15 @@ from datetime import datetime
 import uuid
 import logging
 
-from ..schemas.analytics_schemas import (
+from schemas.analytics_schemas import (
     AnalysisRequest,
     AnalyticsResponse,
     HistoricalAnalyticsRequest,
     HistoricalAnalyticsResponse,
     FarmerHistoryResponse
 )
-from ..services.analytics_processor import AnalyticsProcessor
-from ..utils.firebase_helper import get_current_user, get_firestore_client
+from services.analytics_processor import AnalyticsProcessor
+from utils.firebase_helper import get_current_user, get_firestore_client
 
 router = APIRouter(prefix="/analytics", tags=["analytics"])
 logger = logging.getLogger(__name__)

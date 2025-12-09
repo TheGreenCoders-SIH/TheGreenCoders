@@ -2,8 +2,30 @@
 import React, { useState, useEffect } from 'react';
 import { Activity, Droplets, Thermometer, Wind, AlertTriangle, CheckCircle, XCircle } from 'lucide-react';
 import { Line } from 'react-chartjs-2';
+import {
+    Chart as ChartJS,
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
+} from 'chart.js';
 import iotSimulator from '../lib/iotSimulation';
 import { motion } from 'framer-motion';
+
+ChartJS.register(
+    CategoryScale,
+    LinearScale,
+    PointElement,
+    LineElement,
+    Title,
+    Tooltip,
+    Legend,
+    Filler
+);
 
 export default function IoTDashboard({ farmerId, location }) {
     const [sensors, setSensors] = useState([]);

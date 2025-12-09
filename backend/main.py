@@ -504,6 +504,14 @@ Keep the advice practical, specific, and easy to understand for farmers."""
         print(f"Treatment recommendation error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Treatment recommendation error: {str(e)}")
 
+# Configure Twilio
+TWILIO_ACCOUNT_SID = os.getenv('VITE_TWILIO_ACCOUNT_SID')
+TWILIO_AUTH_TOKEN = os.getenv('VITE_TWILIO_AUTH_TOKEN')
+TWILIO_MESSAGING_SERVICE_SID = os.getenv('VITE_TWILIO_MESSAGING_SERVICE_SID')
+TWILIO_PHONE_NUMBER = os.getenv('VITE_TWILIO_PHONE_NUMBER')
+
+# ... (rest of code)
+
 @app.post("/send-sms")
 async def send_sms(request: SMSRequest):
     if not TWILIO_ACCOUNT_SID or not TWILIO_AUTH_TOKEN:
@@ -519,6 +527,10 @@ async def send_sms(request: SMSRequest):
         
         if TWILIO_MESSAGING_SERVICE_SID:
             message_args["messaging_service_sid"] = TWILIO_MESSAGING_SERVICE_SID
+        elif TWILIO_PHONE_NUMBER:
+            message_args["from_"] = TWILIO_PHONE_NUMBER
+        else:
+             raise HTTPException(status_code=500, detail="Neither Twilio Phone Number nor Messaging Service SID configured")
             
         message = client.messages.create(**message_args)
         

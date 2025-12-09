@@ -144,7 +144,7 @@ const FarmMap = ({
                             polyline: false,
                             polygon: {
                                 allowIntersection: false,
-                                showArea: true,
+                                showArea: false,
                                 metric: ['km', 'm'],
                                 shapeOptions: {
                                     color: '#22c55e',

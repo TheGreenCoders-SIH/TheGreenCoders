@@ -12,6 +12,7 @@ import QRLogin from './pages/QRLogin';
 import FarmerDashboard from './pages/FarmerDashboard';
 import AdminDashboard from './pages/AdminDashboard';
 import NGODashboard from './pages/NGODashboard';
+import GuestDashboard from './pages/GuestDashboard';
 import PestDetection from './pages/PestDetection';
 import NotificationSettings from './pages/NotificationSettings';
 import MyCard from './pages/MyCard';
@@ -26,7 +27,7 @@ import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 
 function AppRoutes() {
-  const { currentUser, userProfile, isAdmin, isFarmer, isNGO } = useAuth();
+  const { currentUser, userProfile, isAdmin, isFarmer, isNGO, isGuest } = useAuth();
 
   if (!currentUser) {
     return (
@@ -46,10 +47,14 @@ function AppRoutes() {
         <Route path="/" element={
           isAdmin ? <Navigate to="/admin" /> :
             isNGO ? <Navigate to="/ngo" /> :
-              <Navigate to="/dashboard" />
+              isGuest ? <Navigate to="/guest-dashboard" /> :
+                <Navigate to="/dashboard" />
         } />
         <Route path="/dashboard" element={
-          isFarmer ? <FarmerDashboard /> : <Navigate to="/admin" />
+          isFarmer ? <FarmerDashboard /> : <Navigate to="/" />
+        } />
+        <Route path="/guest-dashboard" element={
+          isGuest ? <GuestDashboard /> : <Navigate to="/" />
         } />
         <Route path="/admin" element={
           isAdmin ? <AdminDashboard /> : <Navigate to="/dashboard" />

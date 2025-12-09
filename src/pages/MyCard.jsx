@@ -253,12 +253,7 @@ export default function MyCard() {
                         <div className="flex flex-col items-center justify-center bg-gray-50 rounded-lg p-6">
                             <div className="bg-white p-4 rounded-lg shadow-sm mb-3">
                                 <QRCodeCanvas
-                                    value={JSON.stringify({
-                                        farmerId: userProfile.farmerId,
-                                        name: card.farmerName,
-                                        phone: card.phone,
-                                        village: card.village
-                                    })}
+                                    value={userProfile.farmerId}
                                     size={160}
                                     level="H"
                                 />

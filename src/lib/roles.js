@@ -1,7 +1,8 @@
 // Role management utilities
 export const ROLES = {
     ADMIN: 'admin',
-    FARMER: 'farmer'
+    FARMER: 'farmer',
+    NGO: 'ngo'
 };
 
 // Admin email list - can be expanded
@@ -23,7 +24,11 @@ export const generateFarmerId = () => {
 
 // Check user role
 export const getUserRole = (email) => {
-    return isAdmin(email) ? ROLES.ADMIN : ROLES.FARMER;
+    return isAdmin(email) ? ROLES.ADMIN : (email === 'guest@greencoders.com' ? 'guest' : ROLES.FARMER);
+};
+
+export const isNGO = (userRole) => {
+    return userRole === ROLES.NGO;
 };
 
 // Permission checks
@@ -40,5 +45,9 @@ export const canAddFarmer = (userRole) => {
 };
 
 export const canAddAdmin = (userRole) => {
+    return userRole === ROLES.ADMIN;
+};
+
+export const canAddNGO = (userRole) => {
     return userRole === ROLES.ADMIN;
 };

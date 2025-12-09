@@ -9,14 +9,14 @@ from firebase_admin import firestore
 from datetime import datetime
 import uuid
 
-from ..schemas.farm_schemas import (
+from schemas.farm_schemas import (
     FarmCreate,
     FarmUpdate,
     FarmResponse,
     CoordinateEntry,
     FarmBoundary
 )
-from ..utils.firebase_helper import get_current_user, get_firestore_client
+from utils.firebase_helper import get_current_user, get_firestore_client
 
 router = APIRouter(prefix="/farms", tags=["farms"])
 
