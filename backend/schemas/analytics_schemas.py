@@ -2,7 +2,7 @@
 Pydantic Schemas for Analytics
 """
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, model_validator
 from typing import List, Optional, Dict
 from datetime import datetime, date
 
@@ -66,7 +66,7 @@ class AnalyticsResponse(BaseModel):
     overall_health: OverallHealth
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "analysis_date": "2025-12-05",
                 "satellite_data": {
@@ -127,11 +127,11 @@ class HistoricalAnalyticsRequest(BaseModel):
     end_date: date = Field(..., description="End date for historical data")
     interval_days: int = Field(5, ge=1, le=30, description="Interval between data points")
     
-    @validator('end_date')
-    def validate_date_range(cls, v, values):
-        if 'start_date' in values and v < values['start_date']:
+    @model_validator(mode='after')
+    def validate_date_range(self):
+        if self.end_date < self.start_date:
             raise ValueError('end_date must be after start_date')
-        return v
+        return self
 
 class HistoricalAnalyticsResponse(BaseModel):
     """Response with historical analytics"""

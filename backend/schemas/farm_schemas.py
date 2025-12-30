@@ -2,7 +2,7 @@
 Pydantic Schemas for Farm Management
 """
 
-from pydantic import BaseModel, Field, validator
+from pydantic import BaseModel, Field, field_validator
 from typing import List, Optional, Dict
 from datetime import datetime
 
@@ -11,13 +11,15 @@ class FarmBoundary(BaseModel):
     type: str = Field(..., description="Must be 'Polygon'")
     coordinates: List[List[List[float]]] = Field(..., description="Array of coordinate rings")
     
-    @validator('type')
+    @field_validator('type')
+    @classmethod
     def validate_type(cls, v):
         if v != 'Polygon':
             raise ValueError('Geometry type must be Polygon')
         return v
     
-    @validator('coordinates')
+    @field_validator('coordinates')
+    @classmethod
     def validate_coordinates(cls, v):
         if not v or not v[0]:
             raise ValueError('Coordinates cannot be empty')
@@ -35,7 +37,7 @@ class FarmCreate(BaseModel):
     area_hectares: Optional[float] = Field(None, gt=0, description="Farm area in hectares")
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "name": "North Field",
                 "boundary": {
@@ -70,13 +72,14 @@ class FarmResponse(BaseModel):
     last_analyzed: Optional[datetime]
     
     class Config:
-        orm_mode = True
+        from_attributes = True
 
 class CoordinateEntry(BaseModel):
     """Schema for manual coordinate entry"""
     coordinates: List[List[float]] = Field(..., description="List of [longitude, latitude] pairs")
     
-    @validator('coordinates')
+    @field_validator('coordinates')
+    @classmethod
     def validate_coordinates(cls, v):
         if len(v) < 3:
             raise ValueError('At least 3 coordinates required to form a polygon')
@@ -103,7 +106,7 @@ class CoordinateEntry(BaseModel):
         )
     
     class Config:
-        schema_extra = {
+        json_schema_extra = {
             "example": {
                 "coordinates": [
                     [77.1234, 28.5678],
