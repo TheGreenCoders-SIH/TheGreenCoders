@@ -3,6 +3,7 @@ import { Link } from 'react-router-dom';
 import { doc, getDoc, updateDoc } from 'firebase/firestore';
 import { db } from '../lib/firebase';
 import { useAuth } from '../contexts/AuthContext';
+import { useLanguage } from '../contexts/LanguageContext';
 import { getWeatherData, getMarketPrices } from '../lib/api';
 import { generateFarmingSchedule, speakText, stopSpeaking } from '../lib/aiRecommendations';
 import { getCropRecommendations } from '../lib/cropRecommendation';
@@ -16,9 +17,11 @@ import LanguageSelector from '../components/LanguageSelector';
 import { T } from '../hooks/useTranslation';
 import ErrorBoundary from '../components/ErrorBoundary';
 import Tutorial from '../components/Tutorial';
+import MultiStepTutorial from '../components/MultiStepTutorial';
 
 export default function FarmerDashboard() {
     const { currentUser, userProfile } = useAuth();
+    const { currentLanguage } = useLanguage();
     const [card, setCard] = useState(null);
     const [weather, setWeather] = useState(null);
     const [marketData, setMarketData] = useState([]);
@@ -40,7 +43,25 @@ export default function FarmerDashboard() {
         return <T>Good Evening</T>;
     };
 
-    const currentDate = new Date().toLocaleDateString('en-IN', { weekday: 'long', day: 'numeric', month: 'long' });
+    // Language to locale mapping
+    const getLocale = () => {
+        const localeMap = {
+            'en': 'en-IN',
+            'hi': 'hi-IN',
+            'bn': 'bn-IN',
+            'te': 'te-IN',
+            'mr': 'mr-IN',
+            'ta': 'ta-IN',
+            'gu': 'gu-IN',
+            'ur': 'ur-IN',
+            'kn': 'kn-IN',
+            'or': 'or-IN',
+            'ml': 'ml-IN'
+        };
+        return localeMap[currentLanguage] || 'en-IN';
+    };
+
+    const currentDate = new Date().toLocaleDateString(getLocale(), { weekday: 'long', day: 'numeric', month: 'long' });
 
     useEffect(() => {
         // Safety timeout to prevent infinite loading
@@ -88,19 +109,21 @@ export default function FarmerDashboard() {
                 setLocation(village);
 
                 // Weather (Non-blocking)
+                let currentWeatherData = null;
                 try {
                     const weatherData = await getWeatherData(village);
                     setWeather(weatherData);
+                    currentWeatherData = weatherData;
                 } catch (e) { console.error("Weather failed", e); }
 
                 // Schedule & Recommendations (Non-blocking)
                 if (cardData.card) {
                     // Start schedule generation but don't await entirely if it's slow
-                    generateFarmingSchedule(cardData.card, village, weather)
+                    generateFarmingSchedule(cardData.card, village, currentWeatherData)
                         .then(res => setAiRecommendations(res))
                         .catch(err => console.error("AI Schedule failed", err));
 
-                    const crops = getCropRecommendations(cardData.card, weather, 5);
+                    const crops = getCropRecommendations(cardData.card, currentWeatherData, 5);
                     setCropRecommendations(crops || []);
                 }
             }
@@ -116,17 +139,88 @@ export default function FarmerDashboard() {
     };
 
     const checkTutorialStatus = () => {
+        // Check if tutorial was already shown in this session
+        const tutorialShownThisSession = sessionStorage.getItem('tutorial_shown_this_session');
+
+        // If already shown this session, don't show again
+        if (tutorialShownThisSession === 'true') {
+            setShowTutorial(false);
+            return;
+        }
+
         const tutorialCompleted = localStorage.getItem('tutorial_completed');
-        // Show tutorial if user has no card and hasn't completed tutorial
-        if (!card && !tutorialCompleted) {
+
+        // If user has a card (activeCard: true)
+        if (card) {
+            // Show tutorial only once - check localStorage
+            if (!tutorialCompleted) {
+                setShowTutorial(true);
+            } else {
+                setShowTutorial(false);
+            }
+        } else {
+            // If user has no card (activeCard: false)
+            // Show tutorial every time on login (but only once per session)
             setShowTutorial(true);
         }
     };
 
     const handleTutorialComplete = () => {
-        localStorage.setItem('tutorial_completed', 'true');
         setShowTutorial(false);
+
+        // Mark tutorial as shown for this session
+        sessionStorage.setItem('tutorial_shown_this_session', 'true');
+
+        // Only save to localStorage if user has a card
+        // This ensures tutorial shows again for users without cards
+        if (card) {
+            localStorage.setItem('tutorial_completed', 'true');
+        }
     };
+
+    // Tutorial steps
+    const tutorialSteps = [
+        {
+            icon: '🌱',
+            title: 'Welcome to GreenCoders!',
+            message: 'Let\'s take a quick tour to help you get started with your digital farming journey. This tutorial will guide you through the key features.',
+            showPointer: false
+        },
+        {
+            icon: '📋',
+            title: 'Create Your Soil Health Card',
+            message: 'Start your farming journey by creating your first Soil Health Card! Click here to analyze your soil and get personalized recommendations.',
+            targetId: 'soil-card-button',
+            showPointer: true
+        },
+        {
+            icon: '🎤',
+            title: 'Voice Advisory',
+            message: 'Get farming advice in your local language! Use voice commands to ask questions and receive spoken guidance.',
+            targetId: 'voice-advisory-button',
+            showPointer: true
+        },
+        {
+            icon: '🤖',
+            title: 'AI-Powered Recommendations',
+            message: 'Our AI analyzes your soil data and weather to provide personalized crop recommendations and farming schedules.',
+            targetId: 'ai-advisor-button',
+            showPointer: true
+        },
+        {
+            icon: '📈',
+            title: 'Market Prices',
+            message: 'Check real-time market prices for crops to make informed decisions about what to grow and when to sell.',
+            targetId: 'market-button',
+            showPointer: true
+        },
+        {
+            icon: '✅',
+            title: 'You\'re All Set!',
+            message: 'That\'s it! Start by creating your Soil Health Card to unlock all features. The tutorial will appear again on your next login until you create your first card.',
+            showPointer: false
+        }
+    ];
 
     const calculateSoilScore = (data) => {
         if (!data) return 0;
@@ -197,7 +291,7 @@ export default function FarmerDashboard() {
                         </div>
 
                         {weather && (
-                            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex items-center gap-4 min-w-[200px]">
+                            <div className="bg-white/10 backdrop-blur-md border border-white/20 rounded-2xl p-4 flex items-center gap-4 w-full md:w-auto min-w-[200px]">
                                 <div className="bg-white/20 p-3 rounded-full">
                                     <CloudSun className="w-8 h-8 text-yellow-300" />
                                 </div>
@@ -228,6 +322,7 @@ export default function FarmerDashboard() {
                             color="bg-purple-500"
                             title="Voice Guide"
                             delay={0.2}
+                            id="voice-advisory-button"
                         />
                         <QuickActionCard
                             to="/ai-advice"
@@ -235,6 +330,7 @@ export default function FarmerDashboard() {
                             color="bg-indigo-500"
                             title="AI Advisor"
                             delay={0.3}
+                            id="ai-advisor-button"
                         />
                         <QuickActionCard
                             to="/crop-recommendations"
@@ -249,6 +345,7 @@ export default function FarmerDashboard() {
                             color="bg-orange-500"
                             title="Market Prices"
                             delay={0.5}
+                            id="market-button"
                         />
                         <QuickActionCard
                             to="/ngo?view=farmer"
@@ -348,7 +445,7 @@ export default function FarmerDashboard() {
                                         </div>
 
                                         {/* Key Metrics */}
-                                        <div className="col-span-2 grid grid-cols-2 gap-4">
+                                        <div className="md:col-span-2 grid grid-cols-1 sm:grid-cols-2 gap-4">
                                             <SoilMetric label="pH Level" value={card.ph} unit="" status={card.ph >= 6.5 && card.ph <= 7.5 ? "Optimal" : "Check"} color="blue" />
                                             <SoilMetric label="Organic Carbon" value={card.organicCarbon} unit="%" status={card.organicCarbon > 0.75 ? "Good" : "Low"} color="emerald" />
                                             <SoilMetric label="Nitrogen" value={card.npk?.split(':')[0]} unit="mg/kg" color="indigo" />
@@ -422,14 +519,11 @@ export default function FarmerDashboard() {
 
                 </div>
 
-                {/* Tutorial Overlay */}
+                {/* Multi-Step Tutorial Overlay */}
                 {showTutorial && (
-                    <Tutorial
-                        targetId="soil-card-button"
+                    <MultiStepTutorial
+                        steps={tutorialSteps}
                         onComplete={handleTutorialComplete}
-                        message="Start your farming journey by creating your first Soil Health Card! Click here to analyze your soil and get personalized recommendations."
-                        step={1}
-                        totalSteps={1}
                     />
                 )}
             </div>

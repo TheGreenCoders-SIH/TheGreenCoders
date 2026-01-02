@@ -29,22 +29,39 @@ export default function AdminDashboard() {
             const usersSnap = await getDocs(collection(db, 'users'));
             const allUsers = usersSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
 
+            // Load all farmer cards (fetch ONCE instead of inside loop)
+            const cardsSnap = await getDocs(collection(db, 'farmers'));
+            const allCards = cardsSnap.docs.map(doc => ({ id: doc.id, ...doc.data() }));
+
             const farmersList = allUsers.filter(u => u.role === ROLES.FARMER);
             const adminsList = allUsers.filter(u => u.role === ROLES.ADMIN);
             const ngosList = allUsers.filter(u => u.role === ROLES.NGO);
 
-            // Load cards for farmers
-            const farmersWithCards = await Promise.all(
-                farmersList.map(async (farmer) => {
-                    const cardSnap = await getDocs(collection(db, `farmers`));
-                    const farmerCard = cardSnap.docs.find(d => d.id === farmer.farmerId);
+            // Merge card data and fix missing names
+            const farmersWithCards = farmersList.map(farmer => {
+                const farmerCardDoc = allCards.find(c => c.id === farmer.farmerId);
+                const cardData = farmerCardDoc?.card || null;
 
-                    return {
-                        ...farmer,
-                        card: farmerCard?.data()?.card || null
-                    };
-                })
-            );
+                // Fallback name resolution
+                // 1. User Profile Name
+                // 2. Card Name (if available)
+                // 3. Email prefix
+                // 4. "Unnamed Farmer"
+                let resolvedName = farmer.name;
+                if (!resolvedName || resolvedName === 'Unnamed' || resolvedName.trim() === '') {
+                    resolvedName = cardData?.farmerName || farmer.email?.split('@')[0] || 'Unnamed Farmer';
+                    // Capitalize first letter of email prefix if used
+                    if (resolvedName === farmer.email?.split('@')[0]) {
+                        resolvedName = resolvedName.charAt(0).toUpperCase() + resolvedName.slice(1);
+                    }
+                }
+
+                return {
+                    ...farmer,
+                    name: resolvedName,
+                    card: cardData
+                };
+            });
 
             setFarmers(farmersWithCards);
             setAdmins(adminsList);
@@ -61,23 +78,32 @@ export default function AdminDashboard() {
         const formData = new FormData(e.target);
 
         try {
-            const email = formData.get('email');
-            const password = formData.get('password');
             const name = formData.get('name');
+            const phoneNumber = formData.get('phoneNumber');
 
-            // Create Firebase auth account
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            if (!phoneNumber || phoneNumber.length !== 10) {
+                throw new Error("Please enter a valid 10-digit mobile number");
+            }
 
-            // Create user profile
+            // Create user profile in Firestore
+            // Note: We are creating a "Pre-registered" user. 
+            // The actual Auth User will be created when they log in via OTP for the first time.
             const farmerId = generateFarmerId();
-            await setDoc(doc(db, 'users', user.uid), {
-                email,
+
+            // Generate a new document reference to get a unique ID
+            const newFarmerRef = doc(collection(db, 'users'));
+
+            await setDoc(newFarmerRef, {
                 name,
+                phoneNumber, // Store raw 10 digit number or with +91? Let's store raw for consistency with search, or +91 if auth expects it. 
+                // Auth context usually handles +91. Let's store as is for now, maybe add +91 prefix if we standarize.
+                // Looking at other code, we usually use the raw input or handle formatting.
+                // Let's store just the number for now, or match the input.
                 role: ROLES.FARMER,
                 farmerId,
                 hasCard: false,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                isPreRegistered: true // Flag to help AuthContext identify this is a pre-filled profile
             });
 
             setShowAddFarmer(false);
@@ -94,18 +120,22 @@ export default function AdminDashboard() {
         const formData = new FormData(e.target);
 
         try {
-            const email = formData.get('email');
-            const password = formData.get('password');
             const name = formData.get('name');
+            const phoneNumber = formData.get('phoneNumber');
 
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            if (!phoneNumber || phoneNumber.length !== 10) {
+                throw new Error("Please enter a valid 10-digit mobile number");
+            }
 
-            await setDoc(doc(db, 'users', user.uid), {
-                email,
+            // Create admin profile in Firestore
+            const newUserRef = doc(collection(db, 'users'));
+
+            await setDoc(newUserRef, {
                 name,
+                phoneNumber,
                 role: ROLES.ADMIN,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                isPreRegistered: true
             });
 
             setShowAddAdmin(false);
@@ -122,20 +152,24 @@ export default function AdminDashboard() {
         const formData = new FormData(e.target);
 
         try {
-            const email = formData.get('email');
-            const password = formData.get('password');
             const name = formData.get('name');
+            const phoneNumber = formData.get('phoneNumber');
             const organizationId = formData.get('organizationId');
 
-            const userCredential = await createUserWithEmailAndPassword(auth, email, password);
-            const user = userCredential.user;
+            if (!phoneNumber || phoneNumber.length !== 10) {
+                throw new Error("Please enter a valid 10-digit mobile number");
+            }
 
-            await setDoc(doc(db, 'users', user.uid), {
-                email,
+            // Create NGO profile in Firestore
+            const newUserRef = doc(collection(db, 'users'));
+
+            await setDoc(newUserRef, {
                 name,
+                phoneNumber,
                 role: ROLES.NGO,
                 organizationId,
-                createdAt: new Date().toISOString()
+                createdAt: new Date().toISOString(),
+                isPreRegistered: true
             });
 
             setShowAddNGO(false);
@@ -174,186 +208,188 @@ export default function AdminDashboard() {
     }
 
     return (
-        <div className="space-y-8 animate-fade-in-up">
-            {/* Command Center Header */}
-            <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gray-900 text-white">
-                <div className="absolute inset-0 bg-gradient-to-r from-blue-900 to-indigo-900 opacity-90"></div>
-                <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-overlay filter blur-3xl opacity-20 -mr-20 -mt-20"></div>
+        <>
+            <div className="space-y-8 animate-fade-in-up">
+                {/* Command Center Header */}
+                <div className="relative rounded-3xl overflow-hidden shadow-2xl bg-gray-900 text-white">
+                    <div className="absolute inset-0 bg-gradient-to-r from-blue-900 to-indigo-900 opacity-90"></div>
+                    <div className="absolute top-0 right-0 w-96 h-96 bg-blue-500 rounded-full mix-blend-overlay filter blur-3xl opacity-20 -mr-20 -mt-20"></div>
 
-                <div className="relative z-10 p-8 md:p-12">
-                    <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
-                        <div>
-                            <div className="flex items-center gap-3 text-blue-300 font-bold tracking-wider uppercase mb-2">
-                                <LayoutDashboard className="w-5 h-5" />
-                                System Administration
-                            </div>
-                            <h1 className="text-4xl font-extrabold mb-2">Command Center</h1>
-                            <p className="text-blue-100 max-w-xl">
-                                Monitor system health, manage user access, and oversee the entire digital agriculture ecosystem.
-                            </p>
-                        </div>
-
-                        <div className="flex flex-wrap gap-3">
-                            <button onClick={() => setShowAddFarmer(true)} className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 font-bold transition-all flex items-center gap-2">
-                                <UserPlus className="w-5 h-5" /> New Farmer
-                            </button>
-                            <button onClick={() => setShowAddAdmin(true)} className="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-900/50 font-bold transition-all flex items-center gap-2">
-                                <Shield className="w-5 h-5" /> New Admin
-                            </button>
-                            <button onClick={() => setShowAddNGO(true)} className="px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-900/50 font-bold transition-all flex items-center gap-2">
-                                <Building2 className="w-5 h-5" /> New NGO
-                            </button>
-                        </div>
-                    </div>
-
-                    {/* Quick Stats Row */}
-                    <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                            <p className="text-blue-200 text-xs font-semibold uppercase">Total Farmers</p>
-                            <p className="text-3xl font-bold mt-1">{farmers.length}</p>
-                        </div>
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                            <p className="text-blue-200 text-xs font-semibold uppercase">Active Cards</p>
-                            <p className="text-3xl font-bold mt-1">{farmers.filter(f => f.card).length}</p>
-                        </div>
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                            <p className="text-blue-200 text-xs font-semibold uppercase">NGO Partners</p>
-                            <p className="text-3xl font-bold mt-1">{ngos.length}</p>
-                        </div>
-                        <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
-                            <p className="text-blue-200 text-xs font-semibold uppercase">Sys Admins</p>
-                            <p className="text-3xl font-bold mt-1">{admins.length}</p>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
-                {/* Main Content: Farmers Management */}
-                <div className="lg:col-span-2 space-y-6">
-                    <div className="bg-white rounded-3xl p-6 shadow-xl shadow-gray-200/50 border border-gray-100">
-                        <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
-                            <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
-                                <Database className="w-5 h-5 text-green-600" />
-                                Farmer Database
-                            </h2>
-                            <div className="relative w-full sm:w-64">
-                                <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
-                                <input
-                                    type="text"
-                                    placeholder="Search by ID, name..."
-                                    value={searchTerm}
-                                    onChange={(e) => setSearchTerm(e.target.value)}
-                                    className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-50 border-none focus:bg-gray-100 focus:ring-2 focus:ring-green-500/20 transition-all font-medium"
-                                />
-                            </div>
-                        </div>
-
-                        <div className="overflow-x-auto">
-                            <table className="w-full">
-                                <thead>
-                                    <tr className="border-b border-gray-100">
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Farmer ID</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Name</th>
-                                        <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
-                                        <th className="px-4 py-3 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Actions</th>
-                                    </tr>
-                                </thead>
-                                <tbody className="divide-y divide-gray-50">
-                                    {filteredFarmers.map((farmer) => (
-                                        <tr key={farmer.id} className="group hover:bg-gray-50 transition-colors">
-                                            <td className="px-4 py-4 text-sm font-mono text-gray-600">{farmer.farmerId}</td>
-                                            <td className="px-4 py-4">
-                                                <div className="font-semibold text-gray-900">{farmer.name || 'Unnamed'}</div>
-                                                <div className="text-xs text-gray-400">{farmer.email}</div>
-                                            </td>
-                                            <td className="px-4 py-4">
-                                                {farmer.card ? (
-                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 gap-1">
-                                                        <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
-                                                        Active
-                                                    </span>
-                                                ) : (
-                                                    <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
-                                                        Unverified
-                                                    </span>
-                                                )}
-                                            </td>
-                                            <td className="px-4 py-4 text-right">
-                                                <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-                                                    {farmer.card && (
-                                                        <>
-                                                            <button onClick={() => setSelectedCard(farmer.card)} className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
-                                                                <Eye className="w-4 h-4" />
-                                                            </button>
-                                                            <button onClick={() => handleTerminateCard(farmer.farmerId)} className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
-                                                                <Trash2 className="w-4 h-4" />
-                                                            </button>
-                                                        </>
-                                                    )}
-                                                </div>
-                                            </td>
-                                        </tr>
-                                    ))}
-                                </tbody>
-                            </table>
-                        </div>
-                    </div>
-                </div>
-
-                {/* Sidebar: System & Tools */}
-                <div className="space-y-6">
-                    {/* System Health */}
-                    <div className="bg-white rounded-3xl p-6 shadow-xl shadow-gray-200/50 border border-gray-100">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <Activity className="w-5 h-5 text-indigo-500" /> System Status
-                        </h2>
-                        <div className="space-y-4">
-                            <div className="p-4 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100">
-                                <div className="flex justify-between items-center mb-2">
-                                    <span className="text-sm font-semibold text-green-800">IoT Grid Online</span>
-                                    <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
-                                </div>
-                                <div className="text-2xl font-bold text-green-900">{Math.round(farmers.length * 0.82)} <span className="text-sm font-normal text-green-600">sensors</span></div>
-                            </div>
-
-                            <div className="p-4 rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100">
-                                <span className="text-sm font-semibold text-orange-800">Alerts Pending</span>
-                                <div className="text-2xl font-bold text-orange-900 mt-1">{Math.round(farmers.length * 0.1)} <span className="text-sm font-normal text-orange-600">needs check</span></div>
-                            </div>
-                        </div>
-                    </div>
-
-                    {/* SMS Test Tool */}
-                    <div className="bg-white rounded-3xl p-6 shadow-xl shadow-gray-200/50 border border-gray-100">
-                        <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
-                            <Smartphone className="w-5 h-5 text-purple-500" /> SMS Gateway
-                        </h2>
-                        <div className="space-y-3">
+                    <div className="relative z-10 p-8 md:p-12">
+                        <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-6">
                             <div>
-                                <label className="text-xs font-bold text-gray-400 uppercase ml-1">Test Number</label>
-                                <input
-                                    type="tel"
-                                    placeholder="+91..."
-                                    value={testPhone}
-                                    onChange={(e) => setTestPhone(e.target.value)}
-                                    className="w-full mt-1 px-4 py-2 rounded-xl bg-gray-50 font-mono text-sm border-none focus:bg-gray-100 focus:ring-2 focus:ring-purple-500/20"
-                                />
+                                <div className="flex items-center gap-3 text-blue-300 font-bold tracking-wider uppercase mb-2">
+                                    <LayoutDashboard className="w-5 h-5" />
+                                    System Administration
+                                </div>
+                                <h1 className="text-4xl font-extrabold mb-2">Command Center</h1>
+                                <p className="text-blue-100 max-w-xl">
+                                    Monitor system health, manage user access, and oversee the entire digital agriculture ecosystem.
+                                </p>
                             </div>
-                            <button
-                                onClick={async () => {
-                                    if (!testPhone) return alert('Please enter a phone number');
-                                    try {
-                                        const result = await sendSMS(testPhone, "Test from GreenCoders Admin");
-                                        alert(result.success ? 'SMS Sent!' : 'Failed: ' + result.error);
-                                    } catch (error) {
-                                        alert('Error: ' + error.message);
-                                    }
-                                }}
-                                className="w-full py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 transition-colors shadow-lg shadow-purple-500/20"
-                            >
-                                Test Connectivity
-                            </button>
+
+                            <div className="flex flex-wrap gap-3">
+                                <button onClick={() => setShowAddFarmer(true)} className="px-5 py-3 rounded-xl bg-white/10 hover:bg-white/20 backdrop-blur-md border border-white/10 font-bold transition-all flex items-center gap-2">
+                                    <UserPlus className="w-5 h-5" /> New Farmer
+                                </button>
+                                <button onClick={() => setShowAddAdmin(true)} className="px-5 py-3 rounded-xl bg-indigo-600 hover:bg-indigo-500 shadow-lg shadow-indigo-900/50 font-bold transition-all flex items-center gap-2">
+                                    <Shield className="w-5 h-5" /> New Admin
+                                </button>
+                                <button onClick={() => setShowAddNGO(true)} className="px-5 py-3 rounded-xl bg-purple-600 hover:bg-purple-500 shadow-lg shadow-purple-900/50 font-bold transition-all flex items-center gap-2">
+                                    <Building2 className="w-5 h-5" /> New NGO
+                                </button>
+                            </div>
+                        </div>
+
+                        {/* Quick Stats Row */}
+                        <div className="grid grid-cols-2 md:grid-cols-4 gap-4 mt-8">
+                            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                                <p className="text-blue-200 text-xs font-semibold uppercase">Total Farmers</p>
+                                <p className="text-3xl font-bold mt-1">{farmers.length}</p>
+                            </div>
+                            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                                <p className="text-blue-200 text-xs font-semibold uppercase">Active Cards</p>
+                                <p className="text-3xl font-bold mt-1">{farmers.filter(f => f.card).length}</p>
+                            </div>
+                            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                                <p className="text-blue-200 text-xs font-semibold uppercase">NGO Partners</p>
+                                <p className="text-3xl font-bold mt-1">{ngos.length}</p>
+                            </div>
+                            <div className="bg-white/5 backdrop-blur-sm rounded-xl p-4 border border-white/10">
+                                <p className="text-blue-200 text-xs font-semibold uppercase">Sys Admins</p>
+                                <p className="text-3xl font-bold mt-1">{admins.length}</p>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <div className="grid grid-cols-1 lg:grid-cols-3 gap-8">
+                    {/* Main Content: Farmers Management */}
+                    <div className="lg:col-span-2 space-y-6">
+                        <div className="bg-white rounded-3xl p-6 shadow-xl shadow-gray-200/50 border border-gray-100">
+                            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center gap-4 mb-6">
+                                <h2 className="text-xl font-bold text-gray-800 flex items-center gap-2">
+                                    <Database className="w-5 h-5 text-green-600" />
+                                    Farmer Database
+                                </h2>
+                                <div className="relative w-full sm:w-64">
+                                    <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 w-4 h-4 text-gray-400" />
+                                    <input
+                                        type="text"
+                                        placeholder="Search by ID, name..."
+                                        value={searchTerm}
+                                        onChange={(e) => setSearchTerm(e.target.value)}
+                                        className="w-full pl-10 pr-4 py-2.5 rounded-xl bg-gray-50 border-none focus:bg-gray-100 focus:ring-2 focus:ring-green-500/20 transition-all font-medium"
+                                    />
+                                </div>
+                            </div>
+
+                            <div className="overflow-x-auto">
+                                <table className="w-full">
+                                    <thead>
+                                        <tr className="border-b border-gray-100">
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Farmer ID</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Name</th>
+                                            <th className="px-4 py-3 text-left text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                                            <th className="px-4 py-3 text-right text-xs font-bold text-gray-400 uppercase tracking-wider">Actions</th>
+                                        </tr>
+                                    </thead>
+                                    <tbody className="divide-y divide-gray-50">
+                                        {filteredFarmers.map((farmer) => (
+                                            <tr key={farmer.id} className="group hover:bg-gray-50 transition-colors">
+                                                <td className="px-4 py-4 text-sm font-mono text-gray-600">{farmer.farmerId}</td>
+                                                <td className="px-4 py-4">
+                                                    <div className="font-semibold text-gray-900">{farmer.name || 'Unnamed'}</div>
+                                                    <div className="text-xs text-gray-400">{farmer.email}</div>
+                                                </td>
+                                                <td className="px-4 py-4">
+                                                    {farmer.card ? (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-green-100 text-green-800 gap-1">
+                                                            <span className="w-1.5 h-1.5 rounded-full bg-green-500"></span>
+                                                            Active
+                                                        </span>
+                                                    ) : (
+                                                        <span className="inline-flex items-center px-2.5 py-1 rounded-full text-xs font-medium bg-gray-100 text-gray-500">
+                                                            Unverified
+                                                        </span>
+                                                    )}
+                                                </td>
+                                                <td className="px-4 py-4 text-right">
+                                                    <div className="flex justify-end gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+                                                        {farmer.card && (
+                                                            <>
+                                                                <button onClick={() => setSelectedCard(farmer.card)} className="p-2 rounded-lg bg-blue-50 text-blue-600 hover:bg-blue-100 transition-colors">
+                                                                    <Eye className="w-4 h-4" />
+                                                                </button>
+                                                                <button onClick={() => handleTerminateCard(farmer.farmerId)} className="p-2 rounded-lg bg-red-50 text-red-600 hover:bg-red-100 transition-colors">
+                                                                    <Trash2 className="w-4 h-4" />
+                                                                </button>
+                                                            </>
+                                                        )}
+                                                    </div>
+                                                </td>
+                                            </tr>
+                                        ))}
+                                    </tbody>
+                                </table>
+                            </div>
+                        </div>
+                    </div>
+
+                    {/* Sidebar: System & Tools */}
+                    <div className="space-y-6">
+                        {/* System Health */}
+                        <div className="bg-white rounded-3xl p-6 shadow-xl shadow-gray-200/50 border border-gray-100">
+                            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                <Activity className="w-5 h-5 text-indigo-500" /> System Status
+                            </h2>
+                            <div className="space-y-4">
+                                <div className="p-4 rounded-2xl bg-gradient-to-br from-green-50 to-emerald-50 border border-green-100">
+                                    <div className="flex justify-between items-center mb-2">
+                                        <span className="text-sm font-semibold text-green-800">IoT Grid Online</span>
+                                        <span className="w-2 h-2 bg-green-500 rounded-full animate-pulse"></span>
+                                    </div>
+                                    <div className="text-2xl font-bold text-green-900">{Math.round(farmers.length * 0.82)} <span className="text-sm font-normal text-green-600">sensors</span></div>
+                                </div>
+
+                                <div className="p-4 rounded-2xl bg-gradient-to-br from-orange-50 to-amber-50 border border-orange-100">
+                                    <span className="text-sm font-semibold text-orange-800">Alerts Pending</span>
+                                    <div className="text-2xl font-bold text-orange-900 mt-1">{Math.round(farmers.length * 0.1)} <span className="text-sm font-normal text-orange-600">needs check</span></div>
+                                </div>
+                            </div>
+                        </div>
+
+                        {/* SMS Test Tool */}
+                        <div className="bg-white rounded-3xl p-6 shadow-xl shadow-gray-200/50 border border-gray-100">
+                            <h2 className="text-lg font-bold text-gray-800 mb-4 flex items-center gap-2">
+                                <Smartphone className="w-5 h-5 text-purple-500" /> SMS Gateway
+                            </h2>
+                            <div className="space-y-3">
+                                <div>
+                                    <label className="text-xs font-bold text-gray-400 uppercase ml-1">Test Number</label>
+                                    <input
+                                        type="tel"
+                                        placeholder="+91..."
+                                        value={testPhone}
+                                        onChange={(e) => setTestPhone(e.target.value)}
+                                        className="w-full mt-1 px-4 py-2 rounded-xl bg-gray-50 font-mono text-sm border-none focus:bg-gray-100 focus:ring-2 focus:ring-purple-500/20"
+                                    />
+                                </div>
+                                <button
+                                    onClick={async () => {
+                                        if (!testPhone) return alert('Please enter a phone number');
+                                        try {
+                                            const result = await sendSMS(testPhone, "Test from GreenCoders Admin");
+                                            alert(result.success ? 'SMS Sent!' : 'Failed: ' + result.error);
+                                        } catch (error) {
+                                            alert('Error: ' + error.message);
+                                        }
+                                    }}
+                                    className="w-full py-3 rounded-xl bg-purple-600 text-white font-bold hover:bg-purple-700 transition-colors shadow-lg shadow-purple-500/20"
+                                >
+                                    Test Connectivity
+                                </button>
+                            </div>
                         </div>
                     </div>
                 </div>
@@ -390,14 +426,25 @@ export default function AdminDashboard() {
                                         <input type="text" name="organizationId" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:ring-2 focus:ring-black/5" placeholder="ORG-ID" />
                                     </div>
                                 )}
+
                                 <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5 ml-1">Email Address</label>
-                                    <input type="email" name="email" required className="w-full px-4 py-3 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:ring-2 focus:ring-black/5" placeholder="user@example.com" />
+                                    <label className="block text-sm font-medium text-gray-700 mb-1.5 ml-1">Mobile Number</label>
+                                    <div className="relative group">
+                                        <div className="absolute left-4 top-1/2 transform -translate-y-1/2 flex items-center gap-2 border-r border-gray-300 pr-3">
+                                            <span className="text-gray-500 font-bold text-sm">🇮🇳 +91</span>
+                                        </div>
+                                        <input
+                                            type="tel"
+                                            name="phoneNumber"
+                                            required
+                                            maxLength={10}
+                                            className="w-full pl-24 pr-4 py-3 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:ring-2 focus:ring-black/5 font-mono text-lg tracking-wide"
+                                            placeholder="98765 43210"
+                                            onInput={(e) => e.target.value = e.target.value.replace(/[^0-9]/g, '').slice(0, 10)}
+                                        />
+                                    </div>
                                 </div>
-                                <div>
-                                    <label className="block text-sm font-medium text-gray-700 mb-1.5 ml-1">Password</label>
-                                    <input type="password" name="password" required minLength={6} className="w-full px-4 py-3 rounded-xl bg-gray-50 border-transparent focus:bg-white focus:ring-2 focus:ring-black/5" placeholder="••••••••" />
-                                </div>
+
                                 <button type="submit" className="w-full py-4 bg-gray-900 text-white rounded-xl font-bold hover:bg-black transition-colors flex items-center justify-center gap-2">
                                     <Check className="w-5 h-5" /> Create Account
                                 </button>
@@ -454,6 +501,6 @@ export default function AdminDashboard() {
                     </div>
                 )}
             </AnimatePresence>
-        </div>
+        </>
     );
 }

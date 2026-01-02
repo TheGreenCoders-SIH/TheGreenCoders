@@ -197,7 +197,7 @@ export default function QRLogin() {
 
                                     <div className="pt-4 text-center">
                                         <a href="/login" className="text-sm font-medium text-green-600 hover:text-green-700 hover:underline">
-                                            Use Email & Password instead
+                                            Use Phone No instead
                                         </a>
                                     </div>
                                 </motion.div>

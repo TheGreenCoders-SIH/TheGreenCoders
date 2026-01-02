@@ -22,7 +22,6 @@ import SoilAnalysis from './pages/SoilAnalysis';
 import AIAdvice from './pages/AIAdvice';
 import MarketTrends from './pages/MarketTrends';
 import VoiceAdvisory from './pages/VoiceAdvisory';
-import SatelliteAnalytics from './pages/SatelliteAnalytics';
 import { AuthProvider, useAuth } from './contexts/AuthContext';
 import { LanguageProvider } from './contexts/LanguageContext';
 
@@ -74,7 +73,6 @@ function AppRoutes() {
         <Route path="/ai-advice" element={<AIAdvice />} />
         <Route path="/market-trends" element={<MarketTrends />} />
         <Route path="/voice-advisory" element={<VoiceAdvisory />} />
-        <Route path="/satellite-analytics" element={<SatelliteAnalytics />} />
         <Route path="/pest-detection" element={<PestDetection />} />
         <Route path="/notifications" element={<NotificationSettings />} />
         <Route path="/login" element={<Navigate to="/" />} />

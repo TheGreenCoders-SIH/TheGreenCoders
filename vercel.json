@@ -1,0 +1,26 @@
+{
+    "framework": "vite",
+    "rewrites": [
+        {
+            "source": "/api/backend/(.*)",
+            "destination": "/backend/main.py"
+        },
+        {
+            "source": "/api/sms/(.*)",
+            "destination": "/sms_backend/app.py"
+        },
+        {
+            "source": "/(.*)",
+            "destination": "/index.html"
+        }
+    ],
+    "functions": {
+        "backend/main.py": {
+            "maxDuration": 60,
+            "includeFiles": "models/**"
+        },
+        "sms_backend/app.py": {
+            "maxDuration": 10
+        }
+    }
+}

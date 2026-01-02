@@ -18,7 +18,7 @@ export async function generateFarmingSchedule(soilData, location, weatherData) {
          body: JSON.stringify({
             soilData,
             location,
-            weatherData
+            weatherData: weatherData || {}
          }),
       });
 
@@ -104,12 +104,61 @@ ${formattedRecs}
    }
 }
 
-export function speakText(text) {
+export function speakText(text, language = 'en') {
    if ('speechSynthesis' in window) {
-      const utterance = new SpeechSynthesisUtterance(text);
+      // Clean the text before speaking
+      let cleanText = text
+         // Remove markdown headers (#, ##, ###, etc.)
+         .replace(/^#{1,6}\s/gm, '')
+         // Remove bold/italic markers (**, *, __, _)
+         .replace(/\*\*/g, '')
+         .replace(/\*/g, '')
+         .replace(/__/g, '')
+         .replace(/_/g, '')
+         // Remove markdown links [text](url)
+         .replace(/\[([^\]]+)\]\([^\)]+\)/g, '$1')
+         // Remove horizontal rules (---, ***, ___)
+         .replace(/^[-*_]{3,}$/gm, '')
+         // Remove bullet points and list markers
+         .replace(/^[\s]*[-*+]\s/gm, '')
+         .replace(/^[\s]*\d+\.\s/gm, '')
+         // Remove emojis and special symbols (keep only letters, numbers, spaces, and basic punctuation)
+         .replace(/[^\w\s.,!?;:()\-]/g, ' ')
+         // Remove multiple spaces
+         .replace(/\s+/g, ' ')
+         // Trim whitespace
+         .trim();
+
+      const utterance = new SpeechSynthesisUtterance(cleanText);
       utterance.rate = 0.9;
       utterance.pitch = 1;
       utterance.volume = 1;
+
+      // Language code mapping for speech synthesis
+      const langMap = {
+         'en': 'en-US',
+         'hi': 'hi-IN',
+         'pa': 'pa-IN',
+         'bn': 'bn-IN',
+         'te': 'te-IN',
+         'mr': 'mr-IN',
+         'ta': 'ta-IN',
+         'gu': 'gu-IN',
+         'kn': 'kn-IN',
+         'ml': 'ml-IN',
+         'or': 'or-IN'
+      };
+
+      utterance.lang = langMap[language] || 'en-US';
+
+      // Try to find a voice that matches the language
+      const voices = speechSynthesis.getVoices();
+      const matchingVoice = voices.find(voice => voice.lang.startsWith(langMap[language] || 'en'));
+
+      if (matchingVoice) {
+         utterance.voice = matchingVoice;
+      }
+
       speechSynthesis.speak(utterance);
       return true;
    }

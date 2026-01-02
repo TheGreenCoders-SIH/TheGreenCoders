@@ -44,7 +44,7 @@ export default function VoiceAdvisory() {
             stopSpeaking();
             setIsSpeaking(false);
         } else {
-            const success = speakText(aiRecommendations);
+            const success = speakText(aiRecommendations, selectedLanguage);
             if (success) {
                 setIsSpeaking(true);
                 setTimeout(() => setIsSpeaking(false), aiRecommendations.length * 50);
@@ -86,8 +86,8 @@ export default function VoiceAdvisory() {
                         onClick={toggleSpeech}
                         disabled={!aiRecommendations}
                         className={`flex items-center px-8 py-4 rounded-xl font-bold text-lg transition-all shadow-lg ${isSpeaking
-                                ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
-                                : 'bg-purple-600 text-white hover:bg-purple-700'
+                            ? 'bg-red-500 text-white hover:bg-red-600 animate-pulse'
+                            : 'bg-purple-600 text-white hover:bg-purple-700'
                             } disabled:opacity-50 disabled:cursor-not-allowed`}
                     >
                         {isSpeaking ? (
@@ -130,10 +130,26 @@ export default function VoiceAdvisory() {
                 </div>
 
                 {aiRecommendations ? (
-                    <div className="prose max-w-none text-gray-700 leading-relaxed">
-                        {aiRecommendations.split('\n').map((line, idx) => (
-                            <p key={idx} className="mb-2">{line}</p>
-                        ))}
+                    <div className="space-y-4">
+                        {aiRecommendations.split('\n').filter(line => line.trim()).map((line, idx) => {
+                            // Remove markdown symbols
+                            const cleanLine = line.replace(/^#{1,6}\s/, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
+
+                            // Check if it's a header (originally had #)
+                            const isHeader = line.trim().startsWith('#');
+
+                            if (!cleanLine) return null;
+
+                            return isHeader ? (
+                                <h3 key={idx} className="text-lg font-bold text-gray-800 mt-4 mb-2">
+                                    {cleanLine}
+                                </h3>
+                            ) : (
+                                <p key={idx} className="text-gray-700 leading-relaxed ml-4">
+                                    • {cleanLine}
+                                </p>
+                            );
+                        })}
                     </div>
                 ) : (
                     <div className="text-center py-8 text-gray-400">

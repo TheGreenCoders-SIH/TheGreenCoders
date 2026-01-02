@@ -6,6 +6,7 @@ backend_dir = Path(__file__).parent
 sys.path.insert(0, str(backend_dir))
 
 from fastapi import FastAPI, HTTPException, UploadFile, File, Form
+import fastapi
 from fastapi.middleware.cors import CORSMiddleware
 from pydantic import BaseModel
 import joblib
@@ -73,6 +74,21 @@ app.add_middleware(
     allow_methods=["*"],
     allow_headers=["*"],
 )
+
+# Vercel Middleware to strip /api/backend prefix
+@app.middleware("http")
+async def root_path_middleware(request: fastapi.Request, call_next):
+    if request.url.path.startswith("/api/backend"):
+        original_path = request.url.path
+        # Strip the prefix, ensure leading slash
+        new_path = original_path[len("/api/backend"):]
+        if not new_path.startswith("/"):
+            new_path = "/" + new_path
+        request._url = request.url.replace(path=new_path)
+        # Also update scope for accurate routing
+        request.scope["path"] = new_path
+    response = await call_next(request)
+    return response
 
 # Load the ML model (crop recommendation - keep eager loading for this small model)
 MODEL_PATH = Path(__file__).parent.parent / "models" / "crop_model.pkl"
@@ -189,7 +205,7 @@ class ChatRequest(BaseModel):
 class ScheduleRequest(BaseModel):
     soilData: dict
     location: str
-    weatherData: dict
+    weatherData: dict = {}
 
 class RecommendationRequest(BaseModel):
     soilData: dict
@@ -276,11 +292,17 @@ async def chat_with_assistant(request: ChatRequest):
 
 @app.post("/farming-schedule")
 async def generate_farming_schedule(request: ScheduleRequest):
+    if not GOOGLE_API_KEY:
+        print("❌ Error: Gemini API Key not configured")
+        raise HTTPException(status_code=500, detail="Gemini API Key not configured on server")
+
     try:
         model = genai.GenerativeModel('gemini-pro')
         
         soil = request.soilData
-        weather = request.weatherData
+        weather = request.weatherData or {}
+        
+        print(f"Generating schedule for location: {request.location}")
         
         prompt = f"""You are an expert agricultural advisor. Based on the following soil analysis and crop recommendations, provide detailed farming advice:
 
@@ -305,8 +327,16 @@ async def generate_farming_schedule(request: ScheduleRequest):
         Keep the advice practical, specific to the location, and easy to understand for farmers."""
         
         response = model.generate_content(prompt)
+        
+        if not response.text:
+             print("❌ Error: Empty response from Gemini")
+             raise HTTPException(status_code=500, detail="Received empty response from AI model")
+             
         return {"schedule": response.text}
     except Exception as e:
+        import traceback
+        traceback.print_exc()
+        print(f"❌ Schedule generation error: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Schedule generation error: {str(e)}")
 
 @app.post("/recommendations")

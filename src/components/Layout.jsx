@@ -1,7 +1,6 @@
 import React from 'react';
 import Header from './Header';
 import { motion } from 'framer-motion';
-import ChatBot from './VoiceAssistant';
 
 export default function Layout({ children }) {
     return (
@@ -16,7 +15,6 @@ export default function Layout({ children }) {
                     {children}
                 </motion.div>
             </main>
-            <ChatBot />
             <footer className="bg-white border-t border-gray-200 py-6 mt-auto">
                 <div className="container mx-auto px-4 text-center text-gray-500 text-sm">
                     &copy; {new Date().getFullYear()} The GreenCoders. SIH 2025 Project.

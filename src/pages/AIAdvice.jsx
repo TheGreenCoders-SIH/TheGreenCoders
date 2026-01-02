@@ -6,7 +6,6 @@ import { useAuth } from '../contexts/AuthContext';
 import { generateFarmingSchedule, speakText, stopSpeaking } from '../lib/aiRecommendations';
 import { getWeatherData } from '../lib/api';
 import { Sparkles, Volume2, VolumeX, Loader2 } from 'lucide-react';
-import ReactMarkdown from 'react-markdown';
 
 export default function AIAdvice() {
     const { userProfile } = useAuth();
@@ -73,8 +72,8 @@ export default function AIAdvice() {
                         <button
                             onClick={toggleSpeech}
                             className={`flex items-center px-4 py-2 rounded-lg font-semibold transition-colors ${isSpeaking
-                                    ? 'bg-red-500 text-white hover:bg-red-600'
-                                    : 'bg-blue-500 text-white hover:bg-blue-600'
+                                ? 'bg-red-500 text-white hover:bg-red-600'
+                                : 'bg-blue-500 text-white hover:bg-blue-600'
                                 }`}
                         >
                             {isSpeaking ? (
@@ -91,8 +90,24 @@ export default function AIAdvice() {
                         </button>
                     </div>
 
-                    <div className="prose max-w-none">
-                        <ReactMarkdown>{aiRecommendations}</ReactMarkdown>
+                    <div className="space-y-4">
+                        {aiRecommendations.split('\n').filter(line => line.trim()).map((line, idx) => {
+                            const cleanLine = line.replace(/^#{1,6}\s/, '').replace(/\*\*/g, '').replace(/\*/g, '').trim();
+                            const isHeader = line.trim().startsWith('#');
+
+                            if (!cleanLine) return null;
+
+                            return isHeader ? (
+                                <h3 key={idx} className="text-lg font-bold text-purple-800 mt-6 mb-3 flex items-center">
+                                    <Sparkles className="w-5 h-5 mr-2 text-purple-600" />
+                                    {cleanLine}
+                                </h3>
+                            ) : (
+                                <p key={idx} className="text-gray-700 leading-relaxed ml-4 pl-4 border-l-2 border-purple-200">
+                                    {cleanLine}
+                                </p>
+                            );
+                        })}
                     </div>
                 </div>
             ) : (

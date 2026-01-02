@@ -10,6 +10,10 @@ export const ADMIN_EMAILS = [
     'admin@greencoders.com'
 ];
 
+export const ADMIN_PHONE_NUMBERS = [
+    '9999999999'
+];
+
 // Check if user is admin
 export const isAdmin = (email) => {
     return ADMIN_EMAILS.includes(email?.toLowerCase());
